@@ -1,0 +1,4 @@
+ENCODING_NAME = 'utf-8'
+BUFFER_SIZE = 1024
+ADDRESS = 'localhost'
+PORT = 7777
