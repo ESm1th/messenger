@@ -1,2 +1,8 @@
 # 'pyc' files
 *.pyc
+
+# virtual environment
+venv/
+
+# ide files
+.idea/
