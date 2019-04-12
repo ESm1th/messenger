@@ -1,7 +1,12 @@
 import socket
 import argparse
+import json
 import settings
-import handlers
+from protocol import (
+    validate_request, make_response,
+    make_400, make_404
+)
+from routes import resolve
 
 
 # getting values from constants in 'settings' module
@@ -38,15 +43,39 @@ try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((address, port))
     sock.listen(5)
+    print(
+        'Server starts with adress {0} and port {1}'.format(address, port)
+    )
     while True:
-        print(
-            'Server starts with adress {0} and port {1}'.format(address, port)
-        )
         client_sock, client_addr = sock.accept()
         print(f'Client with IP address { client_addr } detected')
         data = client_sock.recv(buffer)
-        response = handlers.presence_parser(data.decode(encoding_name))
-        client_sock.send(response.encode('utf-8'))
+
+        request = json.loads(
+            data.decode(encoding_name)
+        )
+        action_name = request.get('action')
+
+        if validate_request(request):
+            controller = resolve(action_name)
+            if controller:
+                try:
+                    response = controller(request)
+                except Exception as error:
+                    print(error)
+                    response = make_response(
+                        request, 500, 'Internal server error'
+                    )
+            else:
+                print(f'Action { action_name } does not exists')
+                response = make_404(request)
+        else:
+            print('Request is not valid')
+            response = make_400(request)
+
+        client_sock.send(
+            json.dumps(response).encode(encoding_name)
+        )
         client_sock.close()
 except KeyboardInterrupt:
     print('Server closed')
