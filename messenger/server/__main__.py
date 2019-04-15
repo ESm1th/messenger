@@ -1,6 +1,9 @@
 import socket
 import argparse
 import json
+import sys
+import logging
+import string
 import settings
 from protocol import (
     validate_request, make_response,
@@ -37,6 +40,13 @@ elif args.address and not args.port:
     address = args.address
 elif args.port and not args.address:
     port = args.port
+
+
+# define logger object
+splitter_symbols = string.punctuation + string.whitespace
+logger = logging.getLogger(
+    __name__ if __name__ != '__main__' else sys.argv[0].split(splitter_symbols)
+)
 
 
 try:

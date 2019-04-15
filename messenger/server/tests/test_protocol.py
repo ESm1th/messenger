@@ -1,40 +1,40 @@
-from datetime import datetime
-from routes import get_server_routes
 from protocol import (
-    validate_request, make_response,
-    make_400, make_404
+    validate_request,
+    validate_action,
+    make_response
 )
 
 
-request = {
-    'action': 'echo',
-    'time': datetime.now(),
-    'data': 'Testing string'
-}
+# testing 'validate_request' function
+def test_validate_valid_request(valid_request):
+    assert validate_request(valid_request) is True
 
 
-def test_validate_request():
-    boolean_value = validate_request(request)
-    assert boolean_value is True
+def test_validate_invalid_request(invalid_request):
+    assert validate_request(invalid_request) is False
 
 
-def test_make_response():
-    response = make_response(request, 200)
-    assert response.get('action') == request.get('action')
-    assert response.get('data') is None
+# testing 'validate_action' function
+def test_validate_valid_action(valid_request):
+    assert validate_action(valid_request) is True
 
 
-def test_make_400():
-    request.pop('action')
-    response = make_400(request)
-    assert response.get('action') is None
+def test_validate_invalid_action(invalid_action_request):
+    assert validate_action(invalid_action_request) is False
 
 
-def test_make_404():
-    actions = (
-        route['action'] for route in get_server_routes()
+# testing 'make_response' function
+def test_make_response(
+    valid_request,
+    success_code,
+    valid_response
+):
+    response = make_response(
+        valid_request,
+        success_code,
+        data=valid_request.get('data')
     )
-    request['action'] = 'not supported'
-    response = make_404(request)
 
-    assert response.get('action') not in actions
+    assert response.get('action') == valid_response.get('action')
+    assert response.get('data') == valid_response.get('data')
+    assert response.get('user') == valid_response.get('user')

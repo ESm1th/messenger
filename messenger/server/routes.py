@@ -13,12 +13,15 @@ def get_server_routes():
     )
 
 
-def resolve(action, routes=None):
-    routes_mapping = {
+def get_routes_map(routes=None):
+    return {
         route['action']: route['controller']
         for route in routes or get_server_routes()
     }
-    return routes_mapping.get(action, None)
+
+
+def resolve(action, routes=None):
+    return get_routes_map(routes).get(action, None)
 
 
 if __name__ == '__main__':

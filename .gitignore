@@ -6,3 +6,6 @@ venv/
 
 # ide files
 .idea/
+
+# coverage file
+.coverage

@@ -1,4 +1,5 @@
 from datetime import datetime
+from routes import get_routes_map
 
 
 def validate_request(request):
@@ -6,6 +7,13 @@ def validate_request(request):
     request_action = request.get('action')
 
     if request_time and request_action:
+        return True
+
+    return False
+
+
+def validate_action(request):
+    if request.get('action') in get_routes_map():
         return True
 
     return False
