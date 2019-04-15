@@ -1,9 +1,10 @@
 import socket
 import argparse
 import json
-import sys
+import yaml
+import os
 import logging
-import string
+import logging.config
 import settings
 from protocol import (
     validate_request, make_response,
@@ -42,23 +43,34 @@ elif args.port and not args.address:
     port = args.port
 
 
-# define logger object
-splitter_symbols = string.punctuation + string.whitespace
-logger = logging.getLogger(
-    __name__ if __name__ != '__main__' else sys.argv[0].split(splitter_symbols)
-)
+# load logging config from yaml file and get logger
+path = os.path.join(os.path.dirname(__file__), 'conflog.yaml')
+
+with open(path, 'r') as file:
+    config = yaml.load(file.read())
+    logging.config.dictConfig(config)
+
+logger = logging.getLogger('server_logger')
 
 
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.bind((address, port))
     sock.listen(5)
-    print(
-        'Server starts with adress {0} and port {1}'.format(address, port)
+
+    logger.info(
+        'Server started with adress {0} and port {1}'.format(
+            address or 'localhost', port
+        )
     )
+
     while True:
         client_sock, client_addr = sock.accept()
-        print(f'Client with IP address { client_addr } detected')
+
+        logger.info(
+            f'Client with IP address { client_addr } detected'
+        )
+
         data = client_sock.recv(buffer)
 
         request = json.loads(
@@ -72,15 +84,15 @@ try:
                 try:
                     response = controller(request)
                 except Exception as error:
-                    print(error)
+                    logger.error('Exception occurred', exc_info=True)
                     response = make_response(
                         request, 500, 'Internal server error'
                     )
             else:
-                print(f'Action { action_name } does not exists')
+                logger.warning(f'Action { action_name } does not exists')
                 response = make_404(request)
         else:
-            print('Request is not valid')
+            logger.warning('Request is not valid')
             response = make_400(request)
 
         client_sock.send(
@@ -88,4 +100,4 @@ try:
         )
         client_sock.close()
 except KeyboardInterrupt:
-    print('Server closed')
+    logger.info('Server closed')

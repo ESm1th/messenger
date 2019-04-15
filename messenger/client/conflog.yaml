@@ -1,0 +1,15 @@
+version: 1
+formatters:
+  basic:
+    format: '%(asctime)s|%(message)s|%(levelname)s'
+    datefmt: '%Y-%m-%d|%H:%M:%S'
+handlers:
+  clientFileHandler:
+    class: logging.FileHandler
+    filename: client/log/client_log.log
+    level: DEBUG
+    formatter: basic
+loggers:
+  client_logger:
+    level: DEBUG
+    handlers: [clientFileHandler]
