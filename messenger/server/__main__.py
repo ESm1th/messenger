@@ -8,7 +8,8 @@ import logging.config
 import settings
 from protocol import (
     validate_request, make_response,
-    make_400, make_404
+    make_400, make_404,
+    validate_action
 )
 from routes import resolve
 
@@ -66,38 +67,42 @@ try:
 
     while True:
         client_sock, client_addr = sock.accept()
-
-        logger.info(
-            f'Client with IP address { client_addr } detected'
-        )
+        logger.info(f'Client with address { client_addr } detected')
 
         data = client_sock.recv(buffer)
-
         request = json.loads(
             data.decode(encoding_name)
         )
         action_name = request.get('action')
 
         if validate_request(request):
-            controller = resolve(action_name)
-            if controller:
-                try:
-                    response = controller(request)
-                except Exception as error:
-                    logger.error('Exception occurred', exc_info=True)
-                    response = make_response(
-                        request, 500, 'Internal server error'
-                    )
+            if validate_action(request):
+                controller = resolve(action_name)
+                if controller:
+                    try:
+                        response = controller(request)
+
+                        if response.get('code') != 200:
+                            message = response.get('data')
+                            logger.error(f'{ message }')
+                        else:
+                            logger.info(
+                                f'Function { controller.__name__ } was called'
+                            )
+                    except Exception:
+                        logger.critical('Exception occurred', exc_info=True)
+                        response = make_response(
+                            request, 500, 'Internal server error'
+                        )
             else:
-                logger.warning(f'Action { action_name } does not exists')
+                logger.error(f'Action { action_name } does not exists')
                 response = make_404(request)
         else:
-            logger.warning('Request is not valid')
+            logger.error('Request is not valid')
             response = make_400(request)
 
         client_sock.send(
             json.dumps(response).encode(encoding_name)
         )
-        client_sock.close()
 except KeyboardInterrupt:
     logger.info('Server closed')

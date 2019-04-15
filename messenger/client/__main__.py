@@ -1,8 +1,13 @@
 import socket
 import argparse
+import json
+import logging
+import logging.config
+import yaml
 import settings
-import handlers
 import os
+from protocol import make_request
+
 
 # getting values from constants in 'settings' module
 address = getattr(settings, 'ADDRESS', '')
@@ -34,13 +39,41 @@ elif args.port and not args.address:
     port = args.port
 
 
+# load logging config from yaml file and get logger
+path = os.path.join(os.path.dirname(__file__), 'conflog.yaml')
+
+with open(path, 'r') as file:
+    config = yaml.load(file.read())
+    logging.config.dictConfig(config)
+
+logger = logging.getLogger('client_logger')
+
+
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    sock.connect((address, port))
-    message = handlers.presence_message(username=os.getlogin())
-    sock.send(message.encode(encoding_name))
-    data = sock.recv(buffer)
-    handlers.presence_response_parser(data.decode(encoding_name))
+
+    try:
+        sock.connect((address, port))
+        logger.info('Connection with server established')
+    except Exception as error:
+        logger.error('Connection failed', exc_info=True)
+        raise error
+
+    action = input('Please enter action name: ')
+    data = input('Please enter data: ')
+    logger.info(f'Entered action: { action }, entered data: { data }')
+
+    request = make_request(action, data=data)
+
+    try:
+        sock.send(json.dumps(request).encode(encoding_name))
+    except Exception as error:
+        logger.error('Error occurred', exc_info=True)
+        raise error
+
+    response = sock.recv(buffer).decode(encoding_name)
+    print(json.loads(response).get('data'))
     sock.close()
+    logger.info('Client closed')
 except KeyboardInterrupt:
-    print('Client closed')
+    logger.info('Client closed')

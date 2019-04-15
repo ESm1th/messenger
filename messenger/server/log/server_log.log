@@ -1,7 +1,5 @@
-2019-04-15 11:27:27,098-server_logger-INFO-Server starts with adress localhost and port 7777
-2019-04-15 11:28:06,493-server_logger-INFO-Server starts with adress localhost and port 7777
-2019-04-15 13:01:20-server_logger-INFO-Server started with adress localhost and port 7777
-2019/04/15-13:50:27-INFO-Server started with adress localhost and port 7777
-2019-04-15|13:52:00|INFO|Server started with adress localhost and port 7777
-2019-04-15|14:04:38|Server started with adress localhost and port 7777|INFO
-2019-04-15|14:05:16|Server started with adress localhost and port 7777|INFO
+2019-04-15|19:09:54|Server started with adress localhost and port 7777|INFO
+2019-04-15|19:09:59|Client with address ('127.0.0.1', 52971) detected|INFO
+2019-04-15|19:10:07|Function get_date_now was called|INFO
+2019-04-15|19:10:37|Client with address ('127.0.0.1', 52972) detected|INFO
+2019-04-15|19:10:44|Function get_echo was called|INFO

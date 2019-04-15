@@ -1,0 +1,11 @@
+2019-04-15|19:09:10|Connection failed|ERROR
+Traceback (most recent call last):
+  File ".\client\__main__.py", line 56, in <module>
+    sock.connect((address, port))
+ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+2019-04-15|19:09:59|Connection with server established|INFO
+2019-04-15|19:10:07|Entered action: now, entered data: some data|INFO
+2019-04-15|19:10:07|Client closed|INFO
+2019-04-15|19:10:37|Connection with server established|INFO
+2019-04-15|19:10:44|Entered action: echo, entered data: some data|INFO
+2019-04-15|19:10:44|Client closed|INFO
