@@ -1,6 +1,8 @@
 from protocol import make_response, make_400
+from decorators import logged
 
 
+@logged
 def get_echo(request):
     data = request.get('data')
 
