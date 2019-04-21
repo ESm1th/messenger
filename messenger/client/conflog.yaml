@@ -1,8 +1,8 @@
 version: 1
 formatters:
   basic:
-    format: '%(asctime)s|%(message)s|%(levelname)s'
-    datefmt: '%Y-%m-%d|%H:%M:%S'
+    format: '%(asctime)s - %(levelname)s - %(message)s'
+    datefmt: '%Y-%m-%d - %H:%M:%S'
 handlers:
   clientFileHandler:
     class: logging.FileHandler

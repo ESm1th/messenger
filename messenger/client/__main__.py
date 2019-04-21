@@ -26,6 +26,10 @@ parser.add_argument(
     '-p', '--port', type=int,
     help='Server\'s TCP port'
 )
+parser.add_argument(
+    '-m', '--mode', type=str,
+    help='Type of client mode: read - receive responses, write - send requests' 
+)
 args = parser.parse_args()
 
 
@@ -51,7 +55,7 @@ logger = logging.getLogger('client_logger')
 
 try:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
+    
     try:
         sock.connect((address, port))
         logger.info('Connection with server established')
@@ -59,20 +63,30 @@ try:
         logger.error('Connection failed', exc_info=True)
         raise error
 
-    action = input('Please enter action name: ')
-    data = input('Please enter data: ')
-    logger.info(f'Entered action: { action }, entered data: { data }')
+    state = True
 
-    request = make_request(action, data=data)
+    while state:
+        if args.mode == 'write' or args.mode == 'w':
+            action = input('Please enter action name: ')
+            data = input('Please enter data: ')
+            logger.info(f'Entered action: { action }, entered data: { data }')
 
-    try:
-        sock.send(json.dumps(request).encode(encoding_name))
-    except Exception as error:
-        logger.error('Error occurred', exc_info=True)
-        raise error
+            request = make_request(action, data=data, user=os.getlogin())
 
-    response = sock.recv(buffer).decode(encoding_name)
-    print(json.loads(response).get('data'))
+            try:
+                sock.send(json.dumps(request).encode(encoding_name))
+            except Exception as error:
+                logger.error('Error occurred', exc_info=True)
+                raise error
+            response = sock.recv(buffer).decode(encoding_name)
+            print(json.loads(response).get('data'))
+        elif args.mode == 'read' or args.mode == 'r':
+            response = sock.recv(buffer).decode(encoding_name)
+            print(json.loads(response).get('data'))
+        else:
+            print('Mode not supported. Please choose "read" or "write" mode')
+            state = False
+
     sock.close()
     logger.info('Client closed')
 except KeyboardInterrupt:
