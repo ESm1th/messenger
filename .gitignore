@@ -9,3 +9,6 @@ venv/
 
 # coverage file
 .coverage
+
+# log files
+*.log
