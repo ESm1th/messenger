@@ -31,7 +31,7 @@ def make_server_socket(address, port, connections):
             'Server started with adress {0} and port {1}'.format(
                 address or 'localhost', port
             )
-        )
+    )
 
     return sock
 
@@ -74,40 +74,42 @@ def receive_request(client_socket):
 
 
 def process_request(request):
-        if validate_request(request):
-            action = request.get('action')
+    """Processing received request from client"""
 
-            if validate_action(action):
-                controller = resolve(action)
+    if validate_request(request):
+        action = request.get('action')
 
-                if controller:
-                    try:
-                        response = controller(request)
+        if validate_action(action):
+            controller = resolve(action)
 
-                        if response.get('code') != 200:
-                            message = response.get('data')
-                            logger.error('{}'.format(message))
-                        else:
-                            logger.info(
-                                'Function {} was called'.format(
-                                    controller.__name__
-                                )
+            if controller:
+                try:
+                    response = controller(request)
+
+                    if response.get('code') != 200:
+                        message = response.get('data')
+                        logger.error('{}'.format(message))
+                    else:
+                        logger.info(
+                            'Function {} was called'.format(
+                                controller.__name__
                             )
-                    except Exception:
-                        logger.critical('Exception occurred', exc_info=True)
-                        response = make_response(
-                            request, 500, 'Internal server error'
                         )
-            else:
-                logger.error(
-                    'Action {} does not exists'.format(action)
-                )
-                response = make_404(request)
+                except Exception:
+                    logger.critical('Exception occurred', exc_info=True)
+                    response = make_response(
+                        request, 500, 'Internal server error'
+                    )
         else:
-            logger.error('Request is not valid')
-            response = make_400(request)   
-        
-        return response
+            logger.error(
+                'Action {} does not exists'.format(action)
+            )
+            response = make_404(request)
+    else:
+        logger.error('Request is not valid')
+        response = make_400(request)   
+    
+    return response
 
 
 def send_response(client_socket, response):
@@ -119,6 +121,15 @@ def send_response(client_socket, response):
 
 
 def main_loop(address, port):
+    """
+    Monitor all connected clients with 'select' function.
+    
+    'ready_to_read' - list of sockets that have data to read,
+    'ready_to_write' - list of sockets that have free buffer and
+    able to send data to them.
+
+    Data from client in 'write' mode send to every client with 'read' mode.
+    """
 
     connections = []
     responses = []
@@ -127,10 +138,10 @@ def main_loop(address, port):
     connections.append(server_socket)
 
     while True:
-        readeable, writable, _ = select(
+        ready_to_read, ready_to_write, _ = select(
             connections, connections, connections, 0)
 
-        for sock in readeable:
+        for sock in ready_to_read:
 
             if sock is server_socket:
                 client_socket = accept_connection(sock)
@@ -143,15 +154,17 @@ def main_loop(address, port):
                     responses.append(response)
         
         if responses:
-            response = responses.pop()
+
+            for response in responses:
+                response = responses.pop()
             
-            for sock in writable:
-                try:
-                    send_response(sock, response)
-                except ConnectionResetError as error:
-                    logger.error(error, exc_info=True)
-                except ConnectionAbortedError as error:
-                    logger.error(error, exc_info=True)
+                for sock in ready_to_write:
+                    try:
+                        send_response(sock, response)
+                    except ConnectionResetError as error:
+                        logger.error(error, exc_info=True)
+                    except ConnectionAbortedError as error:
+                        logger.error(error, exc_info=True)
 
 
             

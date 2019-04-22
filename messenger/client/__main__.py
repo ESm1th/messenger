@@ -78,8 +78,7 @@ try:
             except Exception as error:
                 logger.error('Error occurred', exc_info=True)
                 raise error
-            response = sock.recv(buffer).decode(encoding_name)
-            print(json.loads(response).get('data'))
+
         elif args.mode == 'read' or args.mode == 'r':
             response = sock.recv(buffer).decode(encoding_name)
             print(json.loads(response).get('data'))
