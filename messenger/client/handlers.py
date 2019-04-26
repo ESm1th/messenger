@@ -29,16 +29,20 @@ def send_request(connection, encoding):
     """Get data from user, make request object and send it to server"""
 
     while True:
-        action = input('Please enter action name: ')
-        data = input('Please enter data: ')
-
-        request = make_request(action=action, data=data, user=os.getlogin())
-
         try:
-            connection.send(json.dumps(request).encode(encoding))
-        except Exception as error:
+            action = input('Please enter action name: ')
+            data = input('Please enter data: ')
+
+            request = make_request(
+                action=action, data=data, user=os.getlogin()
+            )
+
+            connection.send(
+                json.dumps(request).encode(encoding)
+            )
+        except EOFError as error:
             logger.error(error, exc_info=True)
-            print('Error occurred')
+            sys.exit()
 
 
 def get_response(connection, buffer, encoding):
@@ -59,7 +63,7 @@ def main_loop(address, port, encoding, buffer):
     conn = make_connection(address, port)
 
     response_thread = threading.Thread(
-        target=get_response, args=(conn, buffer, encoding)
+        target=get_response, args=(conn, buffer, encoding), daemon=True
     )
 
     request_thread = threading.Thread(

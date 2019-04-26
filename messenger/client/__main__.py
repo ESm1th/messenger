@@ -53,7 +53,7 @@ elif args.port and not args.address:
 path = os.path.join(os.path.dirname(__file__), 'conflog.yaml')
 
 with open(path, 'r') as file:
-    config = yaml.load(file.read())
+    config = yaml.load(file.read(), Loader=yaml.Loader)
     logging.config.dictConfig(config)
 
 logger = logging.getLogger('client_logger')
