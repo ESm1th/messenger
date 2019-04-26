@@ -1,12 +1,18 @@
-import socket
+# import socket
 import argparse
-import json
+# import json
 import logging
 import logging.config
 import yaml
 import settings
 import os
-from protocol import make_request
+# from protocol import make_request
+from handlers import (
+    make_connection,
+    send_request,
+    get_response,
+    main_loop
+)
 
 
 # getting values from constants in 'settings' module
@@ -54,39 +60,6 @@ logger = logging.getLogger('client_logger')
 
 
 try:
-    sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    
-    try:
-        sock.connect((address, port))
-        logger.info('Connection with server established')
-    except Exception as error:
-        logger.error('Connection failed', exc_info=True)
-        raise error
-
-    state = True
-
-    while state:
-        if args.mode == 'write' or args.mode == 'w':
-            action = input('Please enter action name: ')
-            data = input('Please enter data: ')
-            logger.info(f'Entered action: { action }, entered data: { data }')
-
-            request = make_request(action, data=data, user=os.getlogin())
-
-            try:
-                sock.send(json.dumps(request).encode(encoding_name))
-            except Exception as error:
-                logger.error('Error occurred', exc_info=True)
-                raise error
-
-        elif args.mode == 'read' or args.mode == 'r':
-            response = sock.recv(buffer).decode(encoding_name)
-            print(json.loads(response).get('data'))
-        else:
-            print('Mode not supported. Please choose "read" or "write" mode')
-            state = False
-
-    sock.close()
-    logger.info('Client closed')
+    main_loop(address, port, encoding_name, buffer)
 except KeyboardInterrupt:
     logger.info('Client closed')
