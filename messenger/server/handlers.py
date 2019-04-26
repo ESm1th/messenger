@@ -151,23 +151,19 @@ def main_loop(address, port):
 
                 if request:
                     response = process_request(request)
-                    # responses.append(response)
-                    responses.update({sock.getsockname(): response})
-        
+                    responses.update({sock.getpeername(): response})
+
         if responses:
 
-            for client, response in responses:
-                # response = responses.pop()
-            
+            for client in responses:
+
                 for sock in ready_to_write:
-                    print(response)
                     try:
-                        if sock.getsockname() != client:
-                            send_response(sock, response)
+                        if sock.getpeername() != client:
+                            send_response(sock, responses.get(client))
                     except ConnectionResetError as error:
                         logger.error(error, exc_info=True)
                     except ConnectionAbortedError as error:
                         logger.error(error, exc_info=True)
 
-
-            
+            responses.clear()
