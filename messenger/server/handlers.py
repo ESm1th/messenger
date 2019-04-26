@@ -132,7 +132,7 @@ def main_loop(address, port):
     """
 
     connections = []
-    responses = []
+    responses = {}
 
     server_socket = make_server_socket(address, port, 5)
     connections.append(server_socket)
@@ -151,16 +151,19 @@ def main_loop(address, port):
 
                 if request:
                     response = process_request(request)
-                    responses.append(response)
+                    # responses.append(response)
+                    responses.update({sock.getsockname(): response})
         
         if responses:
 
-            for response in responses:
-                response = responses.pop()
+            for client, response in responses:
+                # response = responses.pop()
             
                 for sock in ready_to_write:
+                    print(response)
                     try:
-                        send_response(sock, response)
+                        if sock.getsockname() != client:
+                            send_response(sock, response)
                     except ConnectionResetError as error:
                         logger.error(error, exc_info=True)
                     except ConnectionAbortedError as error:
