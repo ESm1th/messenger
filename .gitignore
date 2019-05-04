@@ -12,3 +12,6 @@ venv/
 
 # log files
 *.log
+
+# ide files
+*.vscode
