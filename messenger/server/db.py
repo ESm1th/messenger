@@ -10,6 +10,7 @@ from sqlalchemy import (
     DateTime,
     Text,
     Enum,
+    Boolean,
     ForeignKey,
     create_engine,
     func
@@ -67,6 +68,7 @@ class User(DefaultFieldsMixin, Base):
     avatar_id = Column(Integer, ForeignKey('media.id'))
     bio = Column(Text)
     password = Column(String, nullable=False)
+    logged = Column(Boolean, default=False)
 
     # relationships
     messages = relationship(
