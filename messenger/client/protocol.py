@@ -1,4 +1,5 @@
 from datetime import datetime
+from abc import ABC, abstractmethod
 
 
 def make_request(action, data=None, user=None):

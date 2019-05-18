@@ -1,18 +1,19 @@
 # import socket
 import argparse
+import sys
+import os
 # import json
 import logging
 import logging.config
 import yaml
+from PyQt5.QtWidgets import QApplication
 import settings
-import os
+
 # from protocol import make_request
 from handlers import (
-    make_connection,
-    send_request,
-    get_response,
-    main_loop
+    EndPoint
 )
+from gui import ClientGui
 
 
 # getting values from constants in 'settings' module
@@ -50,7 +51,7 @@ elif args.port and not args.address:
 
 
 # load logging config from yaml file and get logger
-path = os.path.join(os.path.dirname(__file__), 'conflog.yaml')
+path = os.path.join(settings.BASE_DIR, 'conflog.yaml')
 
 with open(path, 'r') as file:
     config = yaml.load(file.read(), Loader=yaml.Loader)
@@ -60,6 +61,14 @@ logger = logging.getLogger('client_logger')
 
 
 try:
-    main_loop(address, port, encoding_name, buffer)
+    app = QApplication([])
+    widget = ClientGui()
+
+    endpoint = EndPoint()
+    endpoint.setup()
+    endpoint.connect()
+
+    sys.exit(app.exec_())
+    # main_loop(address, port, encoding_name, buffer)
 except KeyboardInterrupt:
     logger.info('Client closed')
