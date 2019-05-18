@@ -1,8 +1,8 @@
 import logging
-
-from protocol import (
-    make_response,
-    make_400
+from core import (
+    RequestHandler,
+    Response,
+    Response_400,
 )
 from db import (
     User,
@@ -12,59 +12,86 @@ from db import (
 logger = logging.getLogger('server_logger')
 
 
-def register(request, session):
-    user_data = request.get('data')
+class AuthBase(RequestHandler):
+    """Base class for [auth] app controllers"""
 
-    if user_data:
-        try:
-            user = session.query(User).filter(
-                User.username == user_data.get('username') 
-            ).one_or_none()
+    model = User
+
+    def validate_request(self, data):
+        """
+        Checks if username and password are not None
+        and if they are not empty string
+        """
+
+        username = data.get('username')
+
+        if username != '' and username:
+            password = data.get('password')
+
+            if password != '' and password:
+                return True
+
+        return False
+
+
+class Register(AuthBase):
+    """Class for register new user"""
+
+    def validate_request(self, data):
+        """Adds validation of passwords equalent"""
+
+        if super().validate_request(data):
+            password = data.get('password')
+            if password == data.get('repeat_password'):
+                return True
+        return False
+
+    def process(self):
+        """
+        Creates new user if requests data is valid and
+        user does not exist in database
+        """
+
+        if self.validate_request(self.request.data):
+            self.request.data.pop('repeat_password')
+            username = self.request.data.get('username')
+            user = self.model.get_user(self.session, username)
 
             if not user:
-                user = User(**user_data)
-                session.add(user)
-                session.commit()
-                return make_response(request, 200, 'Register completed')
+                self.model.create(self.session, **self.request.data)
+                return Response(self.request, {'info': 'Register completed'})
             else:
-                return make_response(request, 205, 'Username already exists')
-
-        except Exception as error:
-            logger.error(error, exc_info=True)
-            return make_response(request, 500, 'Internal server error')
-
-        finally:
-            session.close()
-    else:
-        return make_400(request)
+                return Response(
+                    self.request,
+                    {'code': 205, 'info': 'Username already exists'}
+                )
+        else:
+            return Response_400(self.request)
 
 
-def login(request, session):
-    user_data = request.get('data')
+class Login(AuthBase):
+    """Class for loggining user"""
 
-    if user_data:
-        try:
-            user = session.query(User).filter(
-                User.username == user_data.get('username')
-            ).one_or_none()
+    def process(self):
+        if self.validate_request(self.request.data):
+            username = self.request.data.get('username')
+            user = self.model.get_user(self.session, username)
 
             if user:
-                if user.password == user_data.get('password'):
-                    user.logged = True
-                    session.add(user)
-                    session.commit()
-                    return make_response(request, 200, 'User logged in')
+                password = self.request.data.get('password')
+
+                if password == user.password:
+                    user.update(self.session, {'logged': True})
+                    return Response(self.request, {'info': 'User logged in'})
                 else:
-                    return make_response(request, 205, 'Wrong password')
+                    return Response(
+                        self.request,
+                        {'code': 205, 'info': 'Wrong password'}
+                    )
             else:
-                return make_response(request, 205, 'Username does not exists')
-
-        except Exception as error:
-            logger.error(error, exc_info=True)
-            return make_response(request, 500, 'Internal server error')
-
-        finally:
-            session.close()
-
-    else:
-        return make_400(request)
+                return Response(
+                    self.request,
+                    {'code': 205, 'info': 'Username does not exists'}
+                )
+        else:
+            return Response_400(self.request)

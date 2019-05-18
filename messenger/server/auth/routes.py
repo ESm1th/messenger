@@ -1,5 +1,9 @@
-from .controllers import register
+from .controllers import (
+    Register,
+    Login
+)
 
 routes = [
-    {'action': 'register', 'controller': register}
+    {'action': 'register', 'controller': Register},
+    {'action': 'login', 'controller': Login}
 ]
