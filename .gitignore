@@ -12,6 +12,10 @@ venv/
 
 # log files
 *.log
+*.log.*
 
 # ide files
 *.vscode
+
+# database files
+*.sqlite
