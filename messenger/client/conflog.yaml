@@ -6,7 +6,7 @@ formatters:
 handlers:
   clientFileHandler:
     class: logging.FileHandler
-    filename: log/client_log.log
+    filename: client/log/client_log.log
     level: DEBUG
     formatter: basic
 loggers:
