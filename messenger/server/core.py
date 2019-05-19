@@ -1,6 +1,8 @@
 from __future__ import annotations
 import socket
 import json
+import re
+from dis import code_info
 from logging import getLogger
 from typing import Dict
 from abc import ABC, abstractmethod
@@ -171,22 +173,21 @@ class Router(Singleton):
 
     def resolve(self, action):
         """
-        Return controller for passed action if action exists in passed
-        list of routes, if this list is not None, 
-        or in all server routes, otherwise.
-        Return None if passed action not exists in routes return None.
+        Return controller for passed action if action
+        exists in all server routes.
+        Return None if passed action not exists in routes.
         """
 
         return self.routes_map().get(action, None)
 
 
-class SetUpConnection(Singleton):
+class Setup(Singleton):
     """Setup endpoint settings"""
 
     _settings: Dict = {}
 
-    def __init__(self, arguments: Namespace) -> None:
-        self._args = dict(arguments._get_kwargs())
+    def __init__(self, obj) -> None:
+        self.target = obj
         self._settings = self.set_settings()
 
     def set_settings(self) -> None:
@@ -197,96 +198,138 @@ class SetUpConnection(Singleton):
 
         settings_vars = {
             'host': getattr(settings, 'HOST', 'localhost'),
-            'port': getattr(settings, 'PORT', 8887),
+            'port': int(getattr(settings, 'PORT', 8887)),
             'buffer_size': getattr(settings, 'BUFFER_SIZE', 1024),
             'encoding_name': getattr(settings, 'ENCODING_NAME', 'utf-8'),
             'connections': getattr(settings, 'CONNECTIONS', 5)
         }
 
-        settings_vars.update(
+        return settings_vars
+
+    def update(self, attributes: Dict) -> None:
+        """Updates settings dict by passed attributes dict"""
+
+        self._settings.update(
             {
                 arg: value
-                for arg, value in self._args.items() if value is not None
+                for arg, value in attributes.items() if value is not None
             }
         )
 
-        return settings_vars
-
-    def setup(self, endpoint: EndPoint) -> None:
+    def setup(self) -> None:
         """Sets settings to enpoint. Updates existing endpoint attributes."""
 
         for attribute, value in self._settings.items():
-            if hasattr(endpoint, attribute):
-                setattr(endpoint, attribute, value)
+            if hasattr(self.target, attribute):
+                setattr(self.target, attribute, value)
 
 
-class EndPoint(Singleton):
+class PortDescriptor:
+    """
+    Descriptor class for servers port attribute.
+    This descriptor adds validation for setting port number.
+    """
 
-    _socket: socket.socket = None
-    _host: str = None
-    _port: int = None
-    _buffer_size: int = None
-    _encoding_name: str = None
-    _connections: int = None
+    def __init__(self):
+        self._value = 7777
 
-    @property
-    def host(self):
-        return self._host
+    def __get__(self, instance, instance_type):
+        return self._value
 
-    @host.setter
-    def host(self, host):
-        self._host = host
+    def __set__(self, instance, value):
+        if type(value) is not int:
+            raise TypeError('Value must be integer')
+        if not value >= 0:
+            raise ValueError('Port number must be => 0')
+        self._value = value
 
-    @property
-    def port(self):
-        return self._port
 
-    @port.setter
-    def port(self, number):
-        self._port = number
+class ServerVerifier(type):
+    """Metaclass for checking server class creation"""
 
-    @property
-    def buffer_size(self):
-        return self._buffer_size
+    _instance = None
 
-    @buffer_size.setter
-    def buffer_size(self, buffer):
-        self._buffer_size = buffer
+    def __call__(self, *args, **kwargs):
+        if not self._instance:
+            self._instance = super().__call__(*args, **kwargs)
+        return self._instance
 
-    @property
-    def encoding_name(self):
-        return self._encoding_name
+    def __init__(self, cls, bases, cls_dict):
 
-    @encoding_name.setter
-    def encoding_name(self, encoding):
-        self._encoding_name = encoding
+        for attr, value in cls_dict.items():
+            if hasattr(value, '__call__'):
+                code_data = code_info(value)
+                pattern = r'\bconnect\b'
 
-    @property
-    def connections(self):
-        return self._connections
+                if re.search(pattern, code_data):
+                    raise AttributeError(
+                        ' '.join(
+                            ['Server socket must not have',
+                                '"connect"',
+                                f'calls in code. Check "{attr}" method']
+                        )
+                    )
 
-    @connections.setter
-    def connections(self, value):
-        self._connections = value
+                if 'SOCK_' in code_data:
+                    if 'SOCK_STREAM' not in code_data:
+                        raise AttributeError(
+                            ' '.join(
+                                ['Only TCP socket type allowed,',
+                                    'but other was given']
+                            )
+                        )
 
-    def get_address(self):
-        return self._host, self._port
 
-    def setup(self, service: SetUpConnection) -> None:
-        service.setup(self)
+class Server(metaclass=ServerVerifier):
+
+    # state: bool = False
+    host: str = None
+    port: PortDescriptor = PortDescriptor()
+    buffer_size: int = None
+    encoding_name: str = None
+    connections: int = None
+
+    def __init__(self, namespace: Namespace = None):
+        self.router = Router()
+        self.session = Session
+        self.setter = Setup(self)
+
+        if namespace is not None:
+            if type(namespace) is not Namespace:
+                raise TypeError('Argument must be of type "Namespace" class.')
+
+            attributes = dict(namespace._get_kwargs())
+            self.setter.update(attributes)
+            self.setter.setup()
+
+            super().__init__()
+        else:
+            raise AttributeError(
+                ' '.join(
+                    ['Argument must be provided or should not be',
+                        'object of NoneType class.']
+                )
+            )
+
+    # undo comment for testing metaclass realisation
+    # def connect(self):
+    #     self.connect()
 
     def make_socket(self):
-        self._socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        self._socket.bind(self.get_address())
-        self._socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        self._socket.settimeout(0)
-        self._socket.listen(self.connections)
-        return self._socket
+        # undo comment for testing metaclass realisation and comment below row
+        # self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((self.host, self.port))
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.settimeout(0)
+        self.socket.listen(self.connections)
+        return self.socket
 
     def accept_connection(self):
         """Accept connection and return connected socket"""
 
-        client_socket, client_address = self._socket.accept()
+        client_socket, client_address = self.socket.accept()
         client_socket.setblocking(0)
 
         logger.info(
@@ -333,83 +376,6 @@ class EndPoint(Singleton):
             json.dumps(response.prepare()).encode(self.encoding_name)
         )
 
-
-class Server(Singleton):
-
-    _endpoint: EndPoint = None
-    _router: Router = None
-    _session: Session = None
-
-    @property
-    def endpoint(self):
-        return self._endpoint
-
-    def set_endpoint(self, endpoint: EndPoint) -> None:
-        self._endpoint = endpoint
-
-    @property
-    def router(self):
-        return self._router
-
-    def set_router(self, router: Router) -> None:
-        self._router = router
-
-    @property
-    def session(self):
-        return self._session
-
-    def set_session(self, session: Session) -> None:
-        self._session = session
-
-    def __call__(self):
-        """
-        Monitor all connected clients with 'select' function.
-        'ready_to_read' - list of sockets that have data to read,
-        'ready_to_write' - list of sockets that have free buffer and
-        able to send data to them.
-        """
-
-        connections = []
-        responses = {}
-
-        server_socket = self.endpoint.make_socket()
-        connections.append(server_socket)
-
-        while True:
-            ready_to_read, ready_to_write, _ = select(
-                connections, connections, connections, 0)
-
-            for sock in ready_to_read:
-
-                if sock is server_socket:
-                    client_socket = self.endpoint.accept_connection()
-                    connections.append(client_socket)
-                else:
-                    request = self.endpoint.receive_request(sock)
-
-                    if request:
-                        response = self.process_request(request)
-                        responses.update({sock.getpeername(): response})
-                    else:
-                        connections.remove(sock)
-            if responses:
-
-                for client in responses:
-
-                    for sock in ready_to_write:
-
-                        try:
-                            # if sock.getpeername() != client:
-                            self.endpoint.send_response(
-                                sock, responses.get(client)
-                            )
-                        except ConnectionResetError as error:
-                            logger.error(error, exc_info=True)
-                        except ConnectionAbortedError as error:
-                            logger.error(error, exc_info=True)
-
-                responses.clear()
-
     def process_request(self, request):
         """Processing received request from client"""
 
@@ -433,3 +399,52 @@ class Server(Singleton):
         else:
             logger.error('Request is not valid')
             return Response_400(request)
+
+    def __call__(self):
+        """
+        Monitor all connected clients with 'select' function.
+        'ready_to_read' - list of sockets that have data to read,
+        'ready_to_write' - list of sockets that have free buffer and
+        able to send data to them.
+        """
+
+        connections = []
+        responses = {}
+
+        server_socket = self.make_socket()
+        connections.append(server_socket)
+
+        while True:
+            ready_to_read, ready_to_write, _ = select(
+                connections, connections, connections, 0)
+
+            for sock in ready_to_read:
+
+                if sock is server_socket:
+                    client_socket = self.accept_connection()
+                    connections.append(client_socket)
+                else:
+                    request = self.receive_request(sock)
+
+                    if request:
+                        response = self.process_request(request)
+                        responses.update({sock.getpeername(): response})
+                    else:
+                        connections.remove(sock)
+            if responses:
+
+                for client in responses:
+
+                    for sock in ready_to_write:
+
+                        try:
+                            # if sock.getpeername() != client:
+                            self.send_response(
+                                sock, responses.get(client)
+                            )
+                        except ConnectionResetError as error:
+                            logger.error(error, exc_info=True)
+                        except ConnectionAbortedError as error:
+                            logger.error(error, exc_info=True)
+
+                responses.clear()

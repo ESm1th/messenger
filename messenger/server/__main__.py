@@ -4,13 +4,7 @@ import os
 import logging
 import logging.config
 
-from db import Session
-from core import (
-    EndPoint,
-    SetUpConnection,
-    Server,
-    Router
-)
+from core import Server
 
 
 # adding arguments to command line and parsing them
@@ -37,15 +31,7 @@ logger = logging.getLogger('server_logger')
 
 
 try:
-    server = Server()
-
-    server.set_endpoint(EndPoint())
-    server.set_router(Router())
-    server.set_session(Session)
-
-    SetUpConnection(args).setup(server.endpoint)
-
-    server()
-
+    endpoint = Server(args)
+    endpoint()
 except KeyboardInterrupt:
     logger.info('Server closed')
