@@ -10,7 +10,7 @@ from core import (
 @pytest.fixture
 def valid_request(scope='module'):
     return Request(
-        action='echo',
+        action='register',
         time=datetime.now().timestamp(),
         data='Test string'
     )
