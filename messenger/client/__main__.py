@@ -10,8 +10,8 @@ from PyQt5.QtWidgets import QApplication
 import settings
 
 # from protocol import make_request
-from handlers import (
-    EndPoint
+from core import (
+    Client
 )
 from gui import ClientGui
 
@@ -62,13 +62,11 @@ logger = logging.getLogger('client_logger')
 
 try:
     app = QApplication([])
-    widget = ClientGui()
+    endpoint = Client(args)
 
-    endpoint = EndPoint()
-    endpoint.setup()
+    widget = ClientGui()
     endpoint.connect()
 
     sys.exit(app.exec_())
-    # main_loop(address, port, encoding_name, buffer)
 except KeyboardInterrupt:
     logger.info('Client closed')

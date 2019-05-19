@@ -1,8 +1,6 @@
 import sys
 import os
 import threading
-from abc import ABCMeta
-from PyQt5.sip import wrappertype
 from PyQt5.QtWidgets import (
     QApplication,
     QWidget,
@@ -23,13 +21,17 @@ from PyQt5.QtGui import (
 from PyQt5.QtCore import (
     Qt,
 )
-from handlers import (
-    Listener,
-    EndPoint,
-    RequestCreatorInterface,
-    RegisterRequest,
-    lock
+from typing import Dict
+
+from core import Client
+from requests import (
+    RegistrationRequestCreator,
 )
+from observers import (
+    StatusBarListener,
+    RegistrationFormListener
+)
+
 from settings import (
     HOST,
     PORT,
@@ -62,32 +64,42 @@ class MainWindowButton(QPushButton):
         self.setFixedSize(200, 40)
 
 
-class StatusBarListener(Listener):
-    """Listener realisation for 'Status Bar' widget"""
+class Form(QFormLayout):
+    """
+    Custom form layout for simplefied form creation process.
+    Accepts in constructor or sets 'field' names and then creates rows.
+    Fields passed as 'fields=[...]'.
+    Number of rows - len(fields).
+    Format of row: <field> QLabel - <field> TitledLineEdit.
+    """
 
-    def __init__(self):
-        EndPoint().add_listener('settings', self)
+    def __init__(self, *ars, **kwargs):
         super().__init__()
+        self.fields = self.adapter(kwargs.get('fields'))
 
-    def refresh(self, notifier):
-        if notifier._state:
-            self.connection.setText('Connected')
-        else:
-            self.connection.setText('Disconnected')
-        self.ip.setText(str(notifier.ip))
-        self.port.setText(str(notifier.port))
+    def adapter(self, structure) -> Dict:
+        if type(structure) is not dict:
+            return {element: None for element in structure}
+        return structure
+
+    def construct(self):
+        for field, value in self.fields.items():
+
+            line_edit = TitledLineEdit(title=field)
+
+            if value:
+                line_edit.setText(value)
+                line_edit.setAlignment(Qt.AlignCenter)
+
+            self.addRow(QLabel(field), line_edit)
 
 
-class MetaResolver(ABCMeta, wrappertype):
-    """Resolve metaclass conflict when using ABCMeta and QtWidgets"""
-    pass
-
-
-class StatusBar(StatusBarListener, QStatusBar, metaclass=MetaResolver):
+class StatusBar(QStatusBar):
     """Base status bar widget"""
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.listener = StatusBarListener(self, Client().notifier)
         self.init_ui()
 
     def init_ui(self):
@@ -104,16 +116,16 @@ class StatusBar(StatusBarListener, QStatusBar, metaclass=MetaResolver):
         status_label = QLabel('Status:')
         self.connection = QLabel('Disconnected')
 
-        ip_label = QLabel('Ip address:')
-        self.ip = QLabel()
+        host_label = QLabel('Ip address:')
+        self.host = QLabel()
 
         port_label = QLabel('Port number:')
         self.port = QLabel()
 
         self.addPermanentWidget(status_label)
         self.addPermanentWidget(self.connection)
-        self.addPermanentWidget(ip_label)
-        self.addPermanentWidget(self.ip)
+        self.addPermanentWidget(host_label)
+        self.addPermanentWidget(self.host)
         self.addPermanentWidget(port_label)
         self.addPermanentWidget(self.port)
 
@@ -205,28 +217,15 @@ class SettingsForm(QDialog):
 
     def init_ui(self):
 
-        layout = QFormLayout()
+        titles = {
+            'host': str(HOST),
+            'port': str(PORT),
+            'buffer': str(BUFFER_SIZE),
+            'encoding': str(ENCODING_NAME)
+        }
 
-        host_edit = TitledLineEdit(title='host')
-        host_edit.setText(str(HOST))
-        host_edit.setAlignment(Qt.AlignCenter)
-
-        port_edit = TitledLineEdit(title='port')
-        port_edit.setText(str(PORT))
-        port_edit.setAlignment(Qt.AlignCenter)
-
-        buffer_edit = TitledLineEdit(title='buffer')
-        buffer_edit.setText(str(BUFFER_SIZE))
-        buffer_edit.setAlignment(Qt.AlignCenter)
-
-        encoding_edit = TitledLineEdit(title='encoding')
-        encoding_edit.setText(str(ENCODING_NAME))
-        encoding_edit.setAlignment(Qt.AlignCenter)
-
-        layout.addRow(QLabel('Host'), host_edit)
-        layout.addRow(QLabel('Port'), port_edit)
-        layout.addRow(QLabel('Buffer size'), buffer_edit)
-        layout.addRow(QLabel('Encoding'), encoding_edit)
+        layout = Form(fields=titles)
+        layout.construct()
 
         confirm_button = QPushButton('Confirm')
         default_button = QPushButton('Set default')
@@ -245,38 +244,29 @@ class SettingsForm(QDialog):
         self.setModal(True)
 
 
-class RegistrationFormListener(Listener):
+class RegistrationForm(QDialog):
+
+    request_creator = RegistrationRequestCreator()
 
     def __init__(self):
-        EndPoint().add_listener('response', self)
-        super().__init__()
-
-    def refresh(self, *args, **kwargs):
-        # breakpoint()
-        self.status_log_edit.setText(
-            f"Status code: {kwargs.get('code')}, info: {kwargs.get('info')}"
-        )
-
-
-class RegistrationForm(
-    QDialog,
-    RegistrationFormListener,
-    RequestCreatorInterface,
-    metaclass=MetaResolver
-):
-
-    def __init__(self):
+        self.listener = RegistrationFormListener(self, Client().notifier)
         super().__init__()
         self.init_ui()
 
     def init_ui(self):
 
-        self.status_log_edit = QLineEdit()
-        self.status_log_edit.setPlaceholderText('Response status...')
-        self.status_log_edit.setReadOnly(True)
+        self.status_log_code = QLineEdit()
+        self.status_log_code.setPlaceholderText('Response code...')
+        self.status_log_code.setReadOnly(True)
+
+        self.status_log_info = QLineEdit()
+        self.status_log_info.setPlaceholderText('Response status...')
+        self.status_log_info.setReadOnly(True)
+
         status_log_group = QGroupBox('Status log')
         status_log_layout = QVBoxLayout()
-        status_log_layout.addWidget(self.status_log_edit)
+        status_log_layout.addWidget(self.status_log_code)
+        status_log_layout.addWidget(self.status_log_info)
         status_log_group.setLayout(status_log_layout)
 
         self.username_la = QLabel('Username')
@@ -335,9 +325,6 @@ class RegistrationForm(
         self.setWindowTitle('Register form')
         self.setModal(True)
 
-    def create_request(self, data):
-        return RegisterRequest(data)
-
     def send_registration_request(self):
         widgets = self.findChildren(TitledLineEdit)
 
@@ -346,11 +333,11 @@ class RegistrationForm(
             for widget in widgets
         }
 
-        request = self.create_request(user_data)
+        request = self.request_creator.create_request(user_data)
         raw_data = request.prepare()
 
         send_thread = threading.Thread(
-            target=EndPoint().send_request(raw_data)
+            target=Client().send_request(raw_data)
         )
         send_thread.start()
 
