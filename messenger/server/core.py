@@ -190,7 +190,7 @@ class Setup(Singleton):
         self.target = obj
         self._settings = self.set_settings()
 
-    def set_settings(self) -> None:
+    def set_settings(self) -> Dict:
         """
         Getting settings values from main settings file - 'settings.py'
         and updates them if arguments were added to command line
@@ -278,6 +278,8 @@ class ServerVerifier(type):
                                     'but other was given']
                             )
                         )
+
+        type.__init__(self, cls, bases, cls_dict)
 
 
 class Server(metaclass=ServerVerifier):
