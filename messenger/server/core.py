@@ -4,7 +4,7 @@ import json
 import re
 from dis import code_info
 from logging import getLogger
-from typing import Dict
+from typing import Dict, Any
 from abc import ABC, abstractmethod
 from datetime import datetime
 from argparse import Namespace
@@ -82,7 +82,7 @@ class Response:
     time: str = datetime.now().timestamp()
     code: int = 200
     info: str = 'Ok'
-    data: Dict = {}
+    data: Dict[str, Any] = {}
 
     def __init__(self, request: Request, data: Dict = {}) -> None:
         self.data.update(
@@ -190,7 +190,7 @@ class Setup(Singleton):
         self.target = obj
         self._settings = self.set_settings()
 
-    def set_settings(self) -> Dict:
+    def set_settings(self) -> Dict[str, Any]:
         """
         Getting settings values from main settings file - 'settings.py'
         and updates them if arguments were added to command line
@@ -313,14 +313,7 @@ class Server(metaclass=ServerVerifier):
                 )
             )
 
-    # undo comment for testing metaclass realisation
-    # def connect(self):
-    #     self.connect()
-
     def make_socket(self):
-        # undo comment for testing metaclass realisation and comment below row
-        # self.socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-
         self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self.socket.bind((self.host, self.port))
         self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)

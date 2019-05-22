@@ -4,7 +4,8 @@ from sqlalchemy.ext.declarative import (
 )
 from sqlalchemy.orm import (
     sessionmaker,
-    relationship
+    relationship,
+    Session as SqlAlchemyOrmSession
 )
 from sqlalchemy import (
     Column,
@@ -18,7 +19,8 @@ from sqlalchemy import (
     create_engine,
     func
 )
-from contextlib import contextmanager
+from contextlib import AbstractContextManager
+from typing import List
 
 
 engine = create_engine('sqlite:///db.sqlite', echo=True)
@@ -26,20 +28,19 @@ Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
 
-# session_scope function realisation from SQLAlchemy origin
-# https://docs.sqlalchemy.org/en/13/orm/session_basics.html
+class SessionScope(AbstractContextManager):
+    """SQLAlchemy orm session context manager"""
 
-@contextmanager
-def session_scope(session):
-    """Provide a transactional scope around a series of operations."""
-    session = session()
-    try:
-        yield session
-    except Exception as error:
-        session.rollback()
-        raise error
-    finally:
-        session.close()
+    def __init__(self, session) -> None:
+        self.session = session()
+
+    def __enter__(self) -> SqlAlchemyOrmSession:
+        return self.session
+
+    def __exit__(self, exc_type, exc_value, traceback) -> None:
+        if exc_type:
+            self.session.rollback()
+        self.session.close()
 
 
 class CoreMixin:
@@ -54,26 +55,26 @@ class CoreMixin:
     updated = Column(DateTime, default=func.now(), onupdate=func.now())
 
     @classmethod
-    def all(cls, session):
-        with session_scope(session) as session:
+    def all(cls, seance) -> List:
+        with SessionScope(seance) as session:
             return session.query(cls).all()
 
     @classmethod
-    def create(cls, session, *args, **kwargs):
-        with session_scope(session) as session:
+    def create(cls, seance, *args, **kwargs):
+        with SessionScope(seance) as session:
             obj = cls(*args, **kwargs)
             session.add(obj)
             session.commit()
 
-    def update(self, session, *args, **kwargs):
-        with session_scope(session) as session:
+    def update(self, seance, *args, **kwargs):
+        with SessionScope(seance) as session:
             for key, value in kwargs.items():
                 setattr(self, key, value)
             session.add(self)
             session.commit()
 
-    def delete(self, session):
-        with session_scope(session) as session:
+    def delete(self, seance):
+        with SessionScope(seance) as session:
             session.delete(self)
             session.commit()
 
@@ -109,7 +110,7 @@ class User(CoreMixin, Base):
 
     @classmethod
     def get_user(cls, session, username):
-        with session_scope(session) as session:
+        with SessionScope(session) as session:
             return session.query(cls).filter(
                 cls.username == username).one_or_none()
 
