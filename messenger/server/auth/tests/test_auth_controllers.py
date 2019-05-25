@@ -3,7 +3,7 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
 from db import (
-    User,
+    Client,
     Base
 )
 from auth.controllers import (
@@ -43,7 +43,7 @@ def make_session():
 @pytest.fixture(scope='function')
 def make_user_session(make_session):
     session = make_session()
-    user = User(username='test_user', password='qwerty')
+    user = Client(username='test_user', password='qwerty')
     session.add(user)
     session.commit()
     return session

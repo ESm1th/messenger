@@ -19,3 +19,6 @@ venv/
 
 # database files
 *.sqlite
+
+# mypy files
+.mypy_cache/

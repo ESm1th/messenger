@@ -5,7 +5,7 @@ from core import (
     Response_400,
 )
 from db import (
-    User,
+    Client,
 )
 
 
@@ -15,7 +15,7 @@ logger = logging.getLogger('server_logger')
 class AuthBase(RequestHandler):
     """Base class for [auth] app controllers"""
 
-    model = User
+    model = Client
 
     def validate_request(self, data):
         """
@@ -55,7 +55,7 @@ class Register(AuthBase):
         if self.validate_request(self.request.data):
             self.request.data.pop('repeat_password')
             username = self.request.data.get('username')
-            user = self.model.get_user(self.session, username)
+            user = self.model.get_client(self.session, username)
 
             if not user:
                 self.model.create(self.session, **self.request.data)
@@ -63,7 +63,7 @@ class Register(AuthBase):
             else:
                 return Response(
                     self.request,
-                    {'code': 205, 'info': 'Username already exists'}
+                    {'code': 205, 'info': 'Clientname already exists'}
                 )
         else:
             return Response_400(self.request)
@@ -75,14 +75,14 @@ class Login(AuthBase):
     def process(self):
         if self.validate_request(self.request.data):
             username = self.request.data.get('username')
-            user = self.model.get_user(self.session, username)
+            user = self.model.get_client(self.session, username)
 
             if user:
                 password = self.request.data.get('password')
 
                 if password == user.password:
                     user.update(self.session, {'logged': True})
-                    return Response(self.request, {'info': 'User logged in'})
+                    return Response(self.request, {'info': 'Client logged in'})
                 else:
                     return Response(
                         self.request,
