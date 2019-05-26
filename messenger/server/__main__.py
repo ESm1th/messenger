@@ -1,16 +1,10 @@
 import argparse
 import yaml
-import faulthandler
 import os
-import sys
 import logging
 import logging.config
-from PyQt5.QtWidgets import QApplication
 
-from gui import ServerGui
-
-
-faulthandler.enable()
+from core import Server
 
 
 # adding arguments to command line and parsing them
@@ -37,8 +31,7 @@ logger = logging.getLogger('server_logger')
 
 
 try:
-    app = QApplication([])
-    widget = ServerGui()
-    sys.exit(app.exec_())
+    endpoint = Server(args)
+    endpoint()
 except KeyboardInterrupt:
     logger.info('Server closed')

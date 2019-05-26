@@ -14,9 +14,6 @@ from select import select
 
 import settings
 from db import Base, Session
-from observers import (
-    BaseNotifier
-)
 
 
 logger = getLogger('server_logger')
@@ -184,6 +181,49 @@ class Router(Singleton):
         return self.routes_map().get(action, None)
 
 
+class Setup(Singleton):
+    """Setup endpoint settings"""
+
+    _settings: Dict = {}
+
+    def __init__(self, obj) -> None:
+        self.target = obj
+        self._settings = self.set_settings()
+
+    def set_settings(self) -> Dict[str, Any]:
+        """
+        Getting settings values from main settings file - 'settings.py'
+        and updates them if arguments were added to command line
+        """
+
+        settings_vars = {
+            'host': getattr(settings, 'HOST', 'localhost'),
+            'port': int(getattr(settings, 'PORT', 8887)),
+            'buffer_size': getattr(settings, 'BUFFER_SIZE', 1024),
+            'encoding_name': getattr(settings, 'ENCODING_NAME', 'utf-8'),
+            'connections': getattr(settings, 'CONNECTIONS', 5)
+        }
+
+        return settings_vars
+
+    def update(self, attributes: Dict) -> None:
+        """Updates settings dict by passed attributes dict"""
+
+        self._settings.update(
+            {
+                arg: value
+                for arg, value in attributes.items() if value is not None
+            }
+        )
+
+    def setup(self) -> None:
+        """Sets settings to enpoint. Updates existing endpoint attributes."""
+
+        for attribute, value in self._settings.items():
+            if hasattr(self.target, attribute):
+                setattr(self.target, attribute, value)
+
+
 class PortDescriptor:
     """
     Descriptor class for servers port attribute.
@@ -202,30 +242,6 @@ class PortDescriptor:
         if not value >= 0:
             raise ValueError('Port number must be => 0')
         self._value = value
-
-
-class Settings(Singleton):
-    """Server settings"""
-
-    host: str = 'localhost'
-    port: PortDescriptor = PortDescriptor()
-    buffer_size: int = 1024
-    encoding_name: str = 'utf-8'
-    connections: int = 5
-
-    def __init__(self) -> None:
-        for attr, value in self.__class__.__dict__.items():
-            if not hasattr(value, '__call__'):
-                val = getattr(settings, attr.upper(), None)
-                if val != value and val is not None:
-                    setattr(self, attr, val)
-
-    def update(self, attributes: Dict) -> None:
-        """Updates settings attributes by passed attributes dict"""
-
-        for attr, value in attributes.items():
-            if hasattr(self, attr):
-                setattr(self, attr, value)
 
 
 class ServerVerifier(type):
@@ -268,39 +284,42 @@ class ServerVerifier(type):
 
 class Server(metaclass=ServerVerifier):
 
-    state: str = 'Disconnected'
+    # state: bool = False
+    host: str = None
+    port: PortDescriptor = PortDescriptor()
+    buffer_size: int = None
+    encoding_name: str = None
+    connections: int = None
 
     def __init__(self, namespace: Namespace = None):
-        self.settings = Settings()
         self.router = Router()
         self.session = Session
-        self.notifier = BaseNotifier(self)
+        self.setter = Setup(self)
+
+        if namespace is not None:
+            if type(namespace) is not Namespace:
+                raise TypeError('Argument must be of type "Namespace" class.')
+
+            attributes = dict(namespace._get_kwargs())
+            self.setter.update(attributes)
+            self.setter.setup()
+
+            super().__init__()
+        else:
+            raise AttributeError(
+                ' '.join(
+                    ['Argument must be provided or should not be',
+                        'object of NoneType class.']
+                )
+            )
 
     def make_socket(self):
-
-        try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.bind((self.settings.host, self.settings.port))
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.settimeout(0)
-            self.socket.listen(self.settings.connections)
-            self.state = 'Connected'
-
-            info = 'Server started with {0}:{1}'.format(
-                self.settings.host, self.settings.port
-            )
-            self.notifier.notify('log', info=info)
-
-            return self.socket
-
-        except OSError as error:
-            logger.error(error, exc_info=True)
-            del self.socket
-            self.state = 'Disconnected'
-            self.notifier.notify('log', info=str(error))
-
-        finally:
-            self.notifier.notify('state')
+        self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        self.socket.bind((self.host, self.port))
+        self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        self.socket.settimeout(0)
+        self.socket.listen(self.connections)
+        return self.socket
 
     def accept_connection(self):
         """Accept connection and return connected socket"""
@@ -308,9 +327,10 @@ class Server(metaclass=ServerVerifier):
         client_socket, client_address = self.socket.accept()
         client_socket.setblocking(0)
 
-        info = 'Client with address {} detected'.format(client_address)
-        logger.info(info)
-        self.notifier.notify('client', info=info)
+        logger.info(
+            'Client with address {} detected'.format(client_address)
+        )
+        print('Client with address {} detected'.format(client_address))
 
         return client_socket
 
@@ -322,11 +342,11 @@ class Server(metaclass=ServerVerifier):
         """
 
         try:
-            raw_request = client_socket.recv(self.settings.buffer_size)
+            raw_request = client_socket.recv(self.buffer_size)
 
             if raw_request:
                 request_attributes = json.loads(
-                    raw_request.decode(self.settings.encoding_name)
+                    raw_request.decode(self.encoding_name)
                 )
                 request = Request(**request_attributes)
                 return request
@@ -348,7 +368,7 @@ class Server(metaclass=ServerVerifier):
 
         logger.info(f'Response {response} sent.')
         return client_socket.send(
-            json.dumps(response.prepare()).encode(self.settings.encoding_name)
+            json.dumps(response.prepare()).encode(self.encoding_name)
         )
 
     def process_request(self, request):
@@ -375,17 +395,6 @@ class Server(metaclass=ServerVerifier):
             logger.error('Request is not valid')
             return Response_400(request)
 
-    def close(self):
-        if hasattr(self, 'socket'):
-            self.connections.remove(self.socket)
-            self.socket.close()
-
-        self.state = 'Disconnected'
-        self.notifier.notify('state')
-
-        self.notifier.notify('log', info='Server closed')
-        logger.info('Server closed')
-
     def __call__(self):
         """
         Monitor all connected clients with 'select' function.
@@ -394,21 +403,21 @@ class Server(metaclass=ServerVerifier):
         able to send data to them.
         """
 
-        self.connections = []
+        connections = []
         responses = {}
 
         server_socket = self.make_socket()
-        self.connections.append(server_socket)
+        connections.append(server_socket)
 
-        while self.state == 'Connected':
+        while True:
             ready_to_read, ready_to_write, _ = select(
-                self.connections, self.connections, self.connections, 0)
+                connections, connections, connections, 0)
 
             for sock in ready_to_read:
 
                 if sock is server_socket:
                     client_socket = self.accept_connection()
-                    self.connections.append(client_socket)
+                    connections.append(client_socket)
                 else:
                     request = self.receive_request(sock)
 
@@ -416,7 +425,7 @@ class Server(metaclass=ServerVerifier):
                         response = self.process_request(request)
                         responses.update({sock.getpeername(): response})
                     else:
-                        self.connections.remove(sock)
+                        connections.remove(sock)
             if responses:
 
                 for client in responses:
