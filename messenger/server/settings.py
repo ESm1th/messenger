@@ -1,8 +1,8 @@
 ENCODING_NAME = 'utf-8'
 BUFFER_SIZE = 1024
-HOST = ''
+HOST = 'localhost'
 PORT = 8887
-CONNECTIONS = 5
+CONNECTIONS = 7
 
 INSTALLED_MODULES = [
     'auth'
