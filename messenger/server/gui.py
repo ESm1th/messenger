@@ -190,7 +190,7 @@ class ServerGui(QWidget):
         settings = {
             widget.title: (
                 widget.text()
-                if widget.title not in ('port', 'connections')
+                if widget.title not in ('port', 'connections', 'buffer_size')
                 else int(widget.text())
             )
             for widget in widgets

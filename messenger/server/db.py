@@ -131,5 +131,10 @@ class Contact(CoreMixin, Base):  # type: ignore
     owner = relationship('Client', foreign_keys=owner_id)
     user = relationship('Client', foreign_keys=contact_id)
 
+    @classmethod
+    def get_contacts(cls, session, user):
+        with SessionScope(session) as session:
+            return session.query(cls).filter(cls.owner_id == user.id).all()
+
 
 Base.metadata.create_all(engine)

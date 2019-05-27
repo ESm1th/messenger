@@ -1,4 +1,4 @@
-from __future__ import annotations
+# from __future__ import annotations
 import socket
 import json
 import re
@@ -56,29 +56,6 @@ class Request:
         return True
 
 
-class RequestHandler(ABC):
-    """
-    Interface for all request handlers classes.
-    'Controller' design pattern.
-    """
-
-    model: Base = None
-
-    def __init__(self, request: Request, session: Session) -> None:
-        self.request = request
-        self.session = session
-
-        logger.info(f'Controller: "{self}" was called.')
-
-    @abstractmethod
-    def process(self) -> Response:
-        pass
-
-    @abstractmethod
-    def validate_request(self, data) -> bool:
-        pass
-
-
 class Response:
     """Base response class"""
 
@@ -124,6 +101,29 @@ class Response_500(Response):
 
     code = 500
     info = 'Internal server error'
+
+
+class RequestHandler(ABC):
+    """
+    Interface for all request handlers classes.
+    'Controller' design pattern.
+    """
+
+    model: Base = None
+
+    def __init__(self, request: Request, session: Session) -> None:
+        self.request = request
+        self.session = session
+
+        logger.info(f'Controller: "{self}" was called.')
+
+    @abstractmethod
+    def process(self) -> Response:
+        pass
+
+    @abstractmethod
+    def validate_request(self, data) -> bool:
+        pass
 
 
 class Router(Singleton):
@@ -377,14 +377,13 @@ class Server(metaclass=ServerVerifier):
 
     def close(self):
         if hasattr(self, 'socket'):
+            self.state = 'Disconnected'
             self.connections.remove(self.socket)
             self.socket.close()
-
-        self.state = 'Disconnected'
-        self.notifier.notify('state')
-
-        self.notifier.notify('log', info='Server closed')
-        logger.info('Server closed')
+        
+            self.notifier.notify('state')
+            self.notifier.notify('log', info='Server closed')
+            logger.info('Server closed')
 
     def __call__(self):
         """
