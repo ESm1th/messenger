@@ -135,12 +135,12 @@ class Client(metaclass=ClientVerifier):
             logger.info('Connection with server established')
 
             self.state = True
-            self.notifier.notify('status')
+            self.notifier.notify('state')
             self.get_response()
 
         except Exception as error:
             self.state = False
-            self.notifier.notify('status')
+            self.notifier.notify('state')
             logger.error(error, exc_info=True)
             print('Connection failed')
 
@@ -158,9 +158,9 @@ class Client(metaclass=ClientVerifier):
                     self.notifier.notify('response', **response)
             except Exception as error:
                 self.state = False
-                self.notifier.notify('status')
+                self.notifier.notify('state')
                 raise error
-        
+
     def send_request(self, request):
 
         if self.state:

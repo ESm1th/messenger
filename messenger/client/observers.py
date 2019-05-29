@@ -35,7 +35,8 @@ class BaseNotifier(Notifier):
 
         if event in self._listeners:
             self._listeners[event].append(listener)
-        self._listeners[event] = [listener]
+        else:
+            self._listeners[event] = [listener]
 
     def remove_listener(self, event: str, listener: 'Listener') -> None:
         """Remove listener from notifier"""
@@ -55,21 +56,24 @@ class BaseNotifier(Notifier):
 class Listener(ABC):
     """Listener interface"""
 
+    event: str
+
+    def __init__(self, obj, notifier):
+        self.employer = obj
+        notifier.add_listener(self.event, self)
+
     @abstractmethod
     def refresh(self, notifier: Notifier = None, *args, **kwargs) -> None:
         pass
 
 
-class StatusBarListener(Listener):
+class StateListener(Listener):
     """
     Listener that updates status bar fields by
     response status code and info message.
     """
 
-    def __init__(self, obj, notifier):
-        self.employer = obj
-        notifier.add_listener('status', self)
-        super().__init__()
+    event = 'state'
 
     def refresh(self, notifier):
         self.employer.showMessage(
@@ -77,22 +81,29 @@ class StatusBarListener(Listener):
         )
 
 
-class RegistrationFormListener(Listener):
+class ResponseListener(Listener):
     """
     Listener that updates status log line edit fields
-    on 'Registration Form' widget by response status code and info message.
+    on 'StatusGroup' custom widget by response status code and info message.
     """
 
-    def __init__(self, obj, notifier):
-        self.employer = obj
-        notifier.add_listener('response', self)
-        super().__init__()
+    event = 'response'
 
     def refresh(self, *args, **kwargs):
-
         self.employer.status_log_code.setText(
             f"{kwargs.get('code')}"
         )
         self.employer.status_log_info.setText(
             f"{kwargs.get('info')}"
         )
+
+
+class LoginListener(Listener):
+
+    event = 'response'
+
+    def refresh(self, *args, **kwargs) -> None:
+
+        if kwargs.get('code') == 200:
+            self.employer.parent.chat.emit(kwargs.get('contacts'))
+            self.employer.close()

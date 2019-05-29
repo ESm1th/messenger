@@ -74,15 +74,23 @@ class Login(AuthBase):
 
     def process(self):
         if self.validate_request(self.request.data):
+
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
+            contacts = [str(contact.contact_id) for contact in user.contacts]
 
             if user:
                 password = self.request.data.get('password')
 
                 if password == user.password:
-                    user.update(self.session, {'logged': True})
-                    return Response(self.request, {'info': 'Client logged in'})
+
+                    return Response(
+                        self.request, {
+                            'code': 200,
+                            'info': 'Client logged in',
+                            'contacts': contacts
+                        }
+                    )
                 else:
                     return Response(
                         self.request,

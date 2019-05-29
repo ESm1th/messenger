@@ -49,3 +49,10 @@ class RegistrationRequestCreator(RequestCreatorInterface):
 
     def create_request(self, data):
         return RegistrationRequest(data)
+
+
+class LoginRequestCreator(RequestCreatorInterface):
+    """Create RegistrationRequest object"""
+
+    def create_request(self, data):
+        return LoginRequest(data)

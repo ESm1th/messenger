@@ -7,20 +7,27 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QDialog,
     QDesktopWidget,
+    QMdiArea,
     QStatusBar,
     QLabel,
     QLineEdit,
+    QListView,
     QPushButton,
+    QTextEdit,
     QHBoxLayout,
     QVBoxLayout,
-    QGroupBox
+    QGroupBox,
+    QColumnView
 )
 from PyQt5.QtGui import (
-    QPixmap
+    QPixmap,
+    QStandardItemModel,
+    QStandardItem
 )
 from PyQt5.QtCore import (
     Qt,
     QThread,
+    QStringListModel,
     pyqtSignal
 )
 from typing import Dict
@@ -28,10 +35,12 @@ from typing import Dict
 from core import Client
 from requests import (
     RegistrationRequestCreator,
+    LoginRequestCreator
 )
 from observers import (
-    StatusBarListener,
-    RegistrationFormListener
+    StateListener,
+    ResponseListener,
+    LoginListener
 )
 
 import settings
@@ -47,12 +56,36 @@ class ClientThread(QThread):
         self.client.connect()
 
 
+class ChatThread(QThread):
+
+    def __init__(self, widget):
+        super().__init__()
+        self.widget = widget
+    
+    def run(self):
+        self.widget()
+
+
 class TitleMixin:
     """Adds title field to widgets for making them more identicable"""
 
     def __init__(self, title=None):
         self.title = title
         super().__init__()
+
+
+class CenterMixin:
+
+    def to_center(self):
+        """
+        Gets geometry of window, positions it on the center of the screen
+        and then moves app window to it
+        """
+
+        rectangle = self.frameGeometry()
+        desktop_center = QDesktopWidget().availableGeometry().center()
+        rectangle.moveCenter(desktop_center)
+        self.move(rectangle.topLeft())
 
 
 class TitledLineEdit(TitleMixin, QLineEdit):
@@ -101,10 +134,14 @@ class FormFactory(QFormLayout):
 
 
 class StatusGroup(QGroupBox):
+    """
+    Custom 'group box' widget.
+    Prints 'status code' and 'info message' for responses.
+    """
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
-        self.listener = RegistrationFormListener(
+        self.listener = ResponseListener(
             self, kwargs.get('notifier')
         )
         self.construct()
@@ -128,8 +165,10 @@ class StatusBar(QStatusBar):
     """Base status bar widget"""
 
     def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.listener = StatusBarListener(self, Client().notifier)
+        super().__init__(*args)
+        self.listener = StateListener(
+            self, kwargs.get('notifier')
+        )
         self.init_ui()
 
     def init_ui(self):
@@ -144,138 +183,6 @@ class StatusBar(QStatusBar):
             """
         )
         self.showMessage(f'Status...')
-
-
-class ClientGui(QWidget):
-    """Client application base window"""
-
-    client = Client()
-
-    def __init__(self):
-        super().__init__()
-        self.init_ui()
-        self.client_thread = ClientThread(self.client)
-        self.client_thread.start()
-
-    def init_ui(self):
-        self.register_button = MainWindowButton('Registration')
-        self.register_button.clicked.connect(self.register_dialog)
-
-        self.login_button = MainWindowButton('Log in')
-
-        self.settings_button = MainWindowButton('Settings')
-        self.settings_button.clicked.connect(self.settings_dialog)
-
-        self.status_bar = StatusBar()
-
-        v_layout = QVBoxLayout()
-        v_layout.setAlignment(Qt.AlignCenter)
-        v_layout.setSpacing(15)
-        v_layout.setContentsMargins(30, 0, 0, 0)
-        v_layout.addWidget(self.register_button)
-        v_layout.addWidget(self.login_button)
-        v_layout.addWidget(self.settings_button)
-
-        image_label = QLabel('Image')
-        image_label.setFixedSize(200, 200)
-        image = QPixmap(os.path.join(settings.BASE_DIR, 'media/Chat.png'))
-        image_label.setPixmap(image)
-        image_label.setScaledContents(True)
-
-        h_layout = QHBoxLayout()
-        h_layout.addLayout(v_layout)
-        h_layout.addWidget(image_label)
-        h_layout.setSpacing(40)
-        h_layout.setContentsMargins(0, 0, 30, 10)
-
-        main_v_layout = QVBoxLayout()
-        main_v_layout.setContentsMargins(0, 20, 0, 0)
-        main_v_layout.addLayout(h_layout)
-        main_v_layout.addWidget(self.status_bar)
-
-        self.setLayout(main_v_layout)
-        self.setFixedSize(self.sizeHint())
-        self.setWindowTitle('Geek-messenger')
-        self.to_center()
-        self.show()
-
-    def to_center(self):
-        """
-        Gets geometry of app window, positions it on the center of the screen
-        and then moves app window to it
-        """
-
-        rectangle = self.frameGeometry()
-        desktop_center = QDesktopWidget().availableGeometry().center()
-        rectangle.moveCenter(desktop_center)
-        self.move(rectangle.topLeft())
-
-    def register_dialog(self):
-        """Opens registration dialog form"""
-
-        dialog = RegistrationForm(self.client)
-        self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
-
-    def settings_dialog(self):
-        """Opens settings dialog form"""
-
-        dialog = SettingsForm(self.client)
-        self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
-
-
-class SettingsForm(QDialog):
-
-    def __init__(self, client):
-        super().__init__()
-        self.settings = client.settings
-        self.init_ui()
-
-    def init_ui(self):
-
-        titles = {
-            'host': self.settings.host,
-            'port': self.settings.port,
-            'buffer_size': self.settings.buffer_size,
-            'encoding_name': self.settings.encoding_name
-        }
-
-        settings_layout = FormFactory(fields=titles)
-        settings_layout.construct()
-
-        confirm_button = QPushButton('Confirm')
-        confirm_button.clicked.connect(self.update_settings)
-
-        cancel_button = QPushButton('Cancel')
-        cancel_button.clicked.connect(self.close)
-
-        v_layout = QVBoxLayout()
-        v_layout.addLayout(settings_layout)
-        v_layout.addWidget(confirm_button)
-        v_layout.addWidget(cancel_button)
-
-        self.setLayout(v_layout)
-        self.setFixedSize(self.sizeHint())
-        self.setWindowTitle('Settings')
-        self.setModal(True)
-
-    def update_settings(self):
-        widgets = self.findChildren(TitledLineEdit)
-
-        new_settings = {
-            widget.title: (
-                widget.text()
-                if widget.title not in ('port', 'buffer_size')
-                else int(widget.text())
-            )
-            for widget in widgets
-        }
-        self.settings.update(new_settings)
-
-        self.close()
 
 
 class RegistrationForm(QDialog):
@@ -341,7 +248,264 @@ class RegistrationForm(QDialog):
         send_thread.start()
 
 
+class LoginForm(QDialog):
+
+    request_creator = LoginRequestCreator()
+
+    def __init__(self, client, parent):
+        super().__init__()
+        self.client = client
+        self.parent = parent
+        self.listener = LoginListener(self, self.client.notifier)
+        self.init_ui()
+
+    def init_ui(self):
+
+        status_box = StatusGroup('Status log', notifier=self.client.notifier)
+
+        titles = (
+            'username',
+            'password'
+        )
+
+        login_form_layout = FormFactory(fields=titles)
+        login_form_layout.construct()
+
+        credentials = QGroupBox('Credentials')
+        credentials.setLayout(login_form_layout)
+
+        self.confirm_button = QPushButton('Send')
+        self.confirm_button.clicked.connect(self.send_login_request)
+
+        self.cancel_button = QPushButton('Exit')
+        self.cancel_button.clicked.connect(self.close)
+
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(self.confirm_button)
+        h_layout.addWidget(self.cancel_button)
+
+        buttons_group = QGroupBox('Send or cancel')
+        buttons_group.setLayout(h_layout)
+
+        v_box_layout = QVBoxLayout()
+        v_box_layout.addWidget(status_box)
+        v_box_layout.addWidget(credentials)
+        v_box_layout.addWidget(buttons_group)
+
+        self.setLayout(v_box_layout)
+        self.setWindowTitle('Login form')
+
+    def send_login_request(self):
+        widgets = self.findChildren(TitledLineEdit)
+
+        user_data = {
+            widget.title: widget.text().strip()
+            for widget in widgets
+        }
+
+        request = self.request_creator.create_request(user_data)
+        raw_data = request.prepare().encode(self.client.settings.encoding_name)
+
+        send_thread = threading.Thread(
+            target=self.client.send_request, args=(raw_data,)
+        )
+        send_thread.start()
+
+
+class SettingsForm(QWidget):
+
+    def __init__(self, client):
+        super().__init__()
+        self.settings = client.settings
+        self.init_ui()
+
+    def init_ui(self):
+
+        titles = {
+            'host': self.settings.host,
+            'port': self.settings.port,
+            'buffer_size': self.settings.buffer_size,
+            'encoding_name': self.settings.encoding_name
+        }
+
+        settings_layout = FormFactory(fields=titles)
+        settings_layout.construct()
+
+        confirm_button = QPushButton('Confirm')
+        confirm_button.clicked.connect(self.update_settings)
+
+        cancel_button = QPushButton('Cancel')
+        cancel_button.clicked.connect(self.close)
+
+        v_layout = QVBoxLayout()
+        v_layout.addLayout(settings_layout)
+        v_layout.addWidget(confirm_button)
+        v_layout.addWidget(cancel_button)
+
+        self.setLayout(v_layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle('Settings')
+        self.setModal(True)
+
+    def update_settings(self):
+        widgets = self.findChildren(TitledLineEdit)
+
+        new_settings = {
+            widget.title: (
+                widget.text()
+                if widget.title not in ('port', 'buffer_size')
+                else int(widget.text())
+            )
+            for widget in widgets
+        }
+        self.settings.update(new_settings)
+
+        self.close()
+
+
+class ChatWindow(QDialog):
+
+    def __init__(self, contacts):
+        super().__init__()
+        self.contacts = contacts
+        self.init_model()
+        self.init_ui()
+
+    def init_model(self):
+
+        self.model = QStringListModel(self.contacts)
+
+    def init_ui(self):
+
+        column_view = QColumnView()
+        column_view.setModel(self.model)
+        column_view.setFixedWidth(100)
+        column_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        column_view.clicked.connect(self.cl)
+
+        lbl_contacts = QLabel('Contacts')
+
+        btn_add_contact = QPushButton('Add contact')
+
+        v_contacts_layout = QVBoxLayout()
+        v_contacts_layout.addWidget(lbl_contacts)
+        v_contacts_layout.addWidget(column_view)
+        v_contacts_layout.addWidget(btn_add_contact)
+
+        lbl_chat = QLabel('Chat window')
+
+        self.chat_text_edit = QTextEdit()
+        self.chat_text_edit.setReadOnly(True)
+
+        lbl_enter = QLabel('Enter message')
+
+        self.message_line_edit = QLineEdit()
+
+        v_chat_layout = QVBoxLayout()
+        v_chat_layout.addWidget(lbl_chat)
+        v_chat_layout.addWidget(self.chat_text_edit)
+        v_chat_layout.addWidget(lbl_enter)
+        v_chat_layout.addWidget(self.message_line_edit)
+
+        h_box_layout = QHBoxLayout()
+        h_box_layout.addLayout(v_contacts_layout)
+        h_box_layout.addLayout(v_chat_layout)
+
+        self.setLayout(h_box_layout)
+        self.resize(700, 500)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle('Chat')
+
+    def cl(self, item):
+        print(item.data())
+
+
+class ClientGui(CenterMixin, QWidget):
+    """Client application base window"""
+
+    client = Client()
+    chat = pyqtSignal(list)
+
+    def __init__(self):
+        super().__init__()
+        self.init_ui()
+        self.chat.connect(self.chat_window)
+        self.client_thread = ClientThread(self.client)
+        self.client_thread.start()
+
+    def init_ui(self):
+        self.register_button = MainWindowButton('Registration')
+        self.register_button.clicked.connect(self.register_dialog)
+
+        self.login_button = MainWindowButton('Log in')
+        self.login_button.clicked.connect(self.login_dialog)
+
+        self.settings_button = MainWindowButton('Settings')
+        self.settings_button.clicked.connect(self.settings_dialog)
+
+        self.status_bar = StatusBar(notifier=self.client.notifier)
+
+        v_layout = QVBoxLayout()
+        v_layout.setAlignment(Qt.AlignCenter)
+        v_layout.setSpacing(15)
+        v_layout.setContentsMargins(30, 0, 0, 0)
+        v_layout.addWidget(self.register_button)
+        v_layout.addWidget(self.login_button)
+        v_layout.addWidget(self.settings_button)
+
+        image_label = QLabel('Image')
+        image_label.setFixedSize(200, 200)
+        image = QPixmap(os.path.join(settings.BASE_DIR, 'media/Chat.png'))
+        image_label.setPixmap(image)
+        image_label.setScaledContents(True)
+
+        h_layout = QHBoxLayout()
+        h_layout.addLayout(v_layout)
+        h_layout.addWidget(image_label)
+        h_layout.setSpacing(40)
+        h_layout.setContentsMargins(0, 0, 30, 10)
+
+        main_v_layout = QVBoxLayout()
+        main_v_layout.setContentsMargins(0, 20, 0, 0)
+        main_v_layout.addLayout(h_layout)
+        main_v_layout.addWidget(self.status_bar)
+
+        self.setLayout(main_v_layout)
+        self.setFixedSize(self.sizeHint())
+        self.setWindowTitle('Geek-messenger')
+        self.to_center()
+        self.show()
+
+    def register_dialog(self):
+        """Opens registration dialog form"""
+
+        dialog = RegistrationForm(self.client)
+        self.setVisible(False)
+        dialog.exec_()
+        self.setVisible(True)
+
+    def login_dialog(self):
+        dialog = LoginForm(self.client, self)
+        self.setVisible(False)
+        dialog.exec_()
+        self.setVisible(True)
+
+    def settings_dialog(self):
+        """Opens settings dialog form"""
+
+        dialog = SettingsForm(self.client)
+        self.setVisible(False)
+        dialog.exec_()
+        self.setVisible(True)
+
+    def chat_window(self, contacts):
+        dialog = ChatWindow(contacts)
+        self.setVisible(False)
+        dialog.exec_()
+        self.setVisible(True)
+
+
 if __name__ == '__main__':
     app = QApplication([])
-    widget = ClientGui()
+    widget = ChatWindow()
     sys.exit(app.exec_())
