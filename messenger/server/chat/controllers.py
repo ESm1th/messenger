@@ -5,7 +5,6 @@ from core import (
 )
 from db import (
     Client,
-    Contact
 )
 
 
@@ -19,12 +18,7 @@ class Contacts(RequestHandler):
         and if it is not empty string
         """
 
-        username = data.get('username')
-
-        if username != '' and username:
-            return True
-        else:
-            return False
+        return bool(data.get('username'))
 
     def process(self):
 
@@ -33,10 +27,9 @@ class Contacts(RequestHandler):
             user = self.model.get_client(self.session, username)
 
             if user:
-                contacts = Contact.get_contacts(self.session, user)
-                if contacts:
+                if user.contacts:
                     return Response(
-                        self.request, {'code': 202, 'info': contacts}
+                        self.request, {'code': 202, 'info': user.contacts}
                     )
                 else:
                     return Response(
@@ -52,5 +45,3 @@ class Contacts(RequestHandler):
                 )
         else:
             return Response_400(self.request)
-        
-

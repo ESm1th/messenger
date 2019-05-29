@@ -5,6 +5,7 @@ from sqlalchemy.ext.declarative import (
 from sqlalchemy.orm import (
     sessionmaker,
     relationship,
+    subqueryload,
     Session as SqlAlchemyOrmSession
 )
 from sqlalchemy import (
@@ -99,8 +100,9 @@ class Client(CoreMixin, Base):  # type: ignore
     @classmethod
     def get_client(cls, session, username) -> Union['Client', None]:
         with SessionScope(session) as session:
-            return session.query(cls).filter(
-                cls.username == username).one_or_none()
+            return session.query(cls).options(
+                subqueryload(cls.contacts)
+            ).filter(cls.username == username).one_or_none()
 
 
 class ClientHistory(CoreMixin, Base):  # type: ignore
@@ -128,13 +130,8 @@ class Contact(CoreMixin, Base):  # type: ignore
     contact_id = Column(Integer, ForeignKey('clients.id'))
 
     # relationships
-    owner = relationship('Client', foreign_keys=owner_id)
+    owner = relationship('Client', foreign_keys=owner_id, backref='contacts')
     user = relationship('Client', foreign_keys=contact_id)
-
-    @classmethod
-    def get_contacts(cls, session, user):
-        with SessionScope(session) as session:
-            return session.query(cls).filter(cls.owner_id == user.id).all()
 
 
 Base.metadata.create_all(engine)
