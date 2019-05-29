@@ -21,8 +21,9 @@ from sqlalchemy import (
 from contextlib import AbstractContextManager
 from typing import List, Union
 
+from settings import BASE_DIR
 
-engine = create_engine('sqlite:///db.sqlite', echo=True)
+engine = create_engine('sqlite:///{0}/db.sqlite'.format(BASE_DIR), echo=True)
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 
