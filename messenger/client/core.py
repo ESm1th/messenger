@@ -13,6 +13,7 @@ from observers import BaseNotifier
 logger = logging.getLogger('client_logger')
 lock = threading.Lock()
 
+
 class SingletonMeta(type):
     """Singleton realisation with metaclass"""
 
@@ -117,14 +118,11 @@ class Settings(Singleton):
 
 class Client(metaclass=ClientVerifier):
 
-    state = 'Disconnected'
+    state = False
 
     def __init__(self, namespace: Namespace = None):
         self.notifier = BaseNotifier(self)
         self.settings = Settings()
-
-    def set_state(self, state):
-        self.state = state
 
     def make_socket(self):
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -136,26 +134,21 @@ class Client(metaclass=ClientVerifier):
             self.socket.connect((self.settings.host, self.settings.port))
             logger.info('Connection with server established')
 
-            self.state = 'Connected'
+            self.state = True
             self.notifier.notify('status')
-            print('connect')
-            response_thread = threading.Thread(
-                target=self.get_response
-            )
-            response_thread.start()
+            self.get_response()
 
         except Exception as error:
-            self.state = 'Disconnected'
+            self.state = False
             self.notifier.notify('status')
             logger.error(error, exc_info=True)
             print('Connection failed')
 
     def get_response(self):
 
-        while self.state == 'Connected':
+        while self.state:
             try:
                 raw_response = self.socket.recv(self.settings.buffer_size)
-                print('response: {}'.format(raw_response))
                 if raw_response:
                     response = json.loads(
                         json.loads(
@@ -163,32 +156,21 @@ class Client(metaclass=ClientVerifier):
                         )
                     )
                     self.notifier.notify('response', **response)
-                    print('the end')
             except Exception as error:
                 self.state = False
                 self.notifier.notify('status')
-                print('before error')
                 raise error
         
-
     def send_request(self, request):
 
-        if self.state == 'Connected':
+        if self.state:
             try:
-                print(request)
                 self.socket.send(request)
-                print('request sent')
             except Exception as error:
                 logger.error(error, exc_info=True)
                 raise error
 
     def close(self):
         if self.socket:
-            
-            print('socket exist')
-            print(self.socket.fileno())
             self.socket.shutdown(socket.SHUT_RD)
             # self.socket.close()
-            print('shutdown')
-        
-

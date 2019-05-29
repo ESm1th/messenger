@@ -37,6 +37,16 @@ from observers import (
 import settings
 
 
+class ClientThread(QThread):
+
+    def __init__(self, client):
+        super().__init__()
+        self.client = client
+
+    def run(self):
+        self.client.connect()
+
+
 class TitleMixin:
     """Adds title field to widgets for making them more identicable"""
 
@@ -90,6 +100,30 @@ class FormFactory(QFormLayout):
             self.addRow(QLabel(field.replace('_', ' ').title()), line_edit)
 
 
+class StatusGroup(QGroupBox):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args)
+        self.listener = RegistrationFormListener(
+            self, kwargs.get('notifier')
+        )
+        self.construct()
+
+    def construct(self):
+        self.status_log_code = QLineEdit()
+        self.status_log_code.setPlaceholderText('Response code...')
+        self.status_log_code.setReadOnly(True)
+
+        self.status_log_info = QLineEdit()
+        self.status_log_info.setPlaceholderText('Response status...')
+        self.status_log_info.setReadOnly(True)
+
+        status_log_layout = QVBoxLayout()
+        status_log_layout.addWidget(self.status_log_code)
+        status_log_layout.addWidget(self.status_log_info)
+        self.setLayout(status_log_layout)
+
+
 class StatusBar(QStatusBar):
     """Base status bar widget"""
 
@@ -120,6 +154,8 @@ class ClientGui(QWidget):
     def __init__(self):
         super().__init__()
         self.init_ui()
+        self.client_thread = ClientThread(self.client)
+        self.client_thread.start()
 
     def init_ui(self):
         self.register_button = MainWindowButton('Registration')
@@ -245,31 +281,15 @@ class SettingsForm(QDialog):
 class RegistrationForm(QDialog):
 
     request_creator = RegistrationRequestCreator()
-    change_state = pyqtSignal(str)
 
     def __init__(self, client):
         super().__init__()
         self.client = client
-        self.listener = RegistrationFormListener(self, self.client.notifier)
         self.init_ui()
-        self.change_state.connect(self.client.set_state)
-
 
     def init_ui(self):
 
-        self.status_log_code = QLineEdit()
-        self.status_log_code.setPlaceholderText('Response code...')
-        self.status_log_code.setReadOnly(True)
-
-        self.status_log_info = QLineEdit()
-        self.status_log_info.setPlaceholderText('Response status...')
-        self.status_log_info.setReadOnly(True)
-
-        status_log_group = QGroupBox('Status log')
-        status_log_layout = QVBoxLayout()
-        status_log_layout.addWidget(self.status_log_code)
-        status_log_layout.addWidget(self.status_log_info)
-        status_log_group.setLayout(status_log_layout)
+        status_box = StatusGroup('Status log', notifier=self.client.notifier)
 
         titles = (
             'username',
@@ -296,7 +316,7 @@ class RegistrationForm(QDialog):
         buttons_group.setLayout(h_layout)
 
         v_layout = QVBoxLayout()
-        v_layout.addWidget(status_log_group)
+        v_layout.addWidget(status_box)
         v_layout.addWidget(user_data_group)
         v_layout.addWidget(buttons_group)
 
@@ -314,19 +334,11 @@ class RegistrationForm(QDialog):
 
         request = self.request_creator.create_request(user_data)
         raw_data = request.prepare().encode(self.client.settings.encoding_name)
-        self.client.connect()
 
-        # response_thread = threading.Thread(target=self.client.get_response)
-        # response_thread.start()
-        send_thread = threading.Thread(target=self.client.send_request, args=(raw_data,))
+        send_thread = threading.Thread(
+            target=self.client.send_request, args=(raw_data,)
+        )
         send_thread.start()
-        send_thread.join()
-        
-        print(self.client.socket.fileno())
-        self.change_state.emit('Disconnected')
-        print(self.client.state)
-        self.client.close()
-        print('after close')
 
 
 if __name__ == '__main__':

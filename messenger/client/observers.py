@@ -72,10 +72,9 @@ class StatusBarListener(Listener):
         super().__init__()
 
     def refresh(self, notifier):
-        if notifier.employer.state:
-            self.employer.showMessage('Connected')
-        else:
-            self.employer.showMessage('Disconnected')
+        self.employer.showMessage(
+            'Connected' if notifier.employer.state else 'Disconnected'
+        )
 
 
 class RegistrationFormListener(Listener):
