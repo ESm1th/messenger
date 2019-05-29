@@ -62,11 +62,7 @@ logger = logging.getLogger('client_logger')
 
 try:
     app = QApplication([])
-    endpoint = Client(args)
-
     widget = ClientGui()
-    endpoint.connect()
-
     sys.exit(app.exec_())
 except KeyboardInterrupt:
     logger.info('Client closed')

@@ -26,7 +26,7 @@ class Notifier(ABC):
         pass
 
 
-class ClientNotifier(Notifier):
+class BaseNotifier(Notifier):
 
     _listeners: Dict = {}
 
@@ -68,16 +68,14 @@ class StatusBarListener(Listener):
 
     def __init__(self, obj, notifier):
         self.employer = obj
-        notifier.add_listener('settings', self)
+        notifier.add_listener('status', self)
         super().__init__()
 
     def refresh(self, notifier):
         if notifier.employer.state:
-            self.employer.connection.setText('Connected')
+            self.employer.showMessage('Connected')
         else:
-            self.employer.connection.setText('Disconnected')
-        self.employer.host.setText(str(notifier.employer.host))
-        self.employer.port.setText(str(notifier.employer.port))
+            self.employer.showMessage('Disconnected')
 
 
 class RegistrationFormListener(Listener):
@@ -87,15 +85,15 @@ class RegistrationFormListener(Listener):
     """
 
     def __init__(self, obj, notifier):
-        self.object = obj
+        self.employer = obj
         notifier.add_listener('response', self)
         super().__init__()
 
     def refresh(self, *args, **kwargs):
 
-        self.object.status_log_code.setText(
+        self.employer.status_log_code.setText(
             f"{kwargs.get('code')}"
         )
-        self.object.status_log_info.setText(
+        self.employer.status_log_info.setText(
             f"{kwargs.get('info')}"
         )

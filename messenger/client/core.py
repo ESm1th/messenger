@@ -7,11 +7,11 @@ from argparse import Namespace
 from dis import code_info
 
 import settings
-from observers import ClientNotifier
+from observers import BaseNotifier
 
 
 logger = logging.getLogger('client_logger')
-
+lock = threading.Lock()
 
 class SingletonMeta(type):
     """Singleton realisation with metaclass"""
@@ -72,116 +72,123 @@ class ClientVerifier(type):
         type.__init__(self, cls, bases, cls_dict)
 
 
-class Setup(Singleton):
-    """Setup endpoint settings"""
+class PortDescriptor:
+    """
+    Descriptor class for client port attribute.
+    This descriptor adds validation for setting port number.
+    """
 
-    _settings: Dict = {}
+    def __init__(self):
+        self._value = 7777
 
-    def __init__(self, obj) -> None:
-        self.target = obj
-        self._settings = self.set_settings()
+    def __get__(self, instance, instance_type):
+        return self._value
 
-    def set_settings(self) -> None:
-        """
-        Getting settings values from main settings file - 'settings.py'
-        and updates them if arguments were added to command line
-        """
+    def __set__(self, instance, value):
+        if type(value) is not int:
+            raise TypeError('Value must be integer')
+        if not value >= 0:
+            raise ValueError('Port number must be => 0')
+        self._value = value
 
-        settings_vars = {
-            'host': getattr(settings, 'HOST', 'localhost'),
-            'port': getattr(settings, 'PORT', 8887),
-            'buffer_size': getattr(settings, 'BUFFER_SIZE', 1024),
-            'encoding_name': getattr(settings, 'ENCODING_NAME', 'utf-8'),
-        }
 
-        return settings_vars
+class Settings(Singleton):
+    """Server settings"""
+
+    host: str = 'localhost'
+    port: PortDescriptor = PortDescriptor()
+    buffer_size: int = 1024
+    encoding_name: str = 'utf-8'
+
+    def __init__(self) -> None:
+        for attr, value in self.__class__.__dict__.items():
+            if not hasattr(value, '__call__'):
+                val = getattr(settings, attr.upper(), None)
+                if val != value and val is not None:
+                    setattr(self, attr, val)
 
     def update(self, attributes: Dict) -> None:
-        """Updates settings dict by passed attributes dict"""
+        """Updates settings attributes by passed attributes dict"""
 
-        self._settings.update(
-            {
-                arg: value
-                for arg, value in attributes.items() if value is not None
-            }
-        )
-
-    def setup(self) -> None:
-        """Sets settings to enpoint. Updates existing endpoint attributes."""
-
-        for attribute, value in self._settings.items():
-            if hasattr(self.target, attribute):
-                setattr(self.target, attribute, value)
+        for attr, value in attributes.items():
+            if hasattr(self, attr):
+                setattr(self, attr, value)
 
 
 class Client(metaclass=ClientVerifier):
 
-    state: bool = False
-    host: str = None
-    port: int = None
-    buffer_size: int = None
-    encoding_name: str = None
-
-    # undo comment for testing metaclass realisation
-    # socket = socket.socket()
+    state = 'Disconnected'
 
     def __init__(self, namespace: Namespace = None):
-        self.notifier = ClientNotifier(self)
-        self.setter = Setup(self)
+        self.notifier = BaseNotifier(self)
+        self.settings = Settings()
 
-        if namespace is not None:
-            if type(namespace) is not Namespace:
-                raise TypeError('Argument must be of type "Namespace" class.')
-
-            attributes = dict(namespace._get_kwargs())
-            self.setter.update(attributes)
-            self.setter.setup()
-
-            super().__init__()
-        else:
-            raise AttributeError(
-                ' '.join(
-                    ['Argument must be provided or should not be',
-                        'object of NoneType class.']
-                )
-            )
+    def set_state(self, state):
+        self.state = state
 
     def make_socket(self):
-        return socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-
-        # undo comment for testing metaclass realisation and comment above row
-        # return socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        return sock
 
     def connect(self):
         try:
             self.socket = self.make_socket()
-            self.socket.connect((self.host, self.port))
+            self.socket.connect((self.settings.host, self.settings.port))
             logger.info('Connection with server established')
 
-            self.state = True
-            self.notifier.notify('settings')
-
+            self.state = 'Connected'
+            self.notifier.notify('status')
+            print('connect')
             response_thread = threading.Thread(
-                target=self.get_response, daemon=True
+                target=self.get_response
             )
             response_thread.start()
 
         except Exception as error:
+            self.state = 'Disconnected'
+            self.notifier.notify('status')
             logger.error(error, exc_info=True)
             print('Connection failed')
 
     def get_response(self):
-        while True:
-            raw_response = self.socket.recv(self.buffer_size)
-            response = json.loads(
-                json.loads(raw_response.decode(self.encoding_name))
-            )
-            self.notifier.notify('response', **response)
+
+        while self.state == 'Connected':
+            try:
+                raw_response = self.socket.recv(self.settings.buffer_size)
+                print('response: {}'.format(raw_response))
+                if raw_response:
+                    response = json.loads(
+                        json.loads(
+                            raw_response.decode(self.settings.encoding_name)
+                        )
+                    )
+                    self.notifier.notify('response', **response)
+                    print('the end')
+            except Exception as error:
+                self.state = False
+                self.notifier.notify('status')
+                print('before error')
+                raise error
+        
 
     def send_request(self, request):
-        if self.state:
+
+        if self.state == 'Connected':
             try:
+                print(request)
                 self.socket.send(request)
+                print('request sent')
             except Exception as error:
                 logger.error(error, exc_info=True)
                 raise error
+
+    def close(self):
+        if self.socket:
+            
+            print('socket exist')
+            print(self.socket.fileno())
+            self.socket.shutdown(socket.SHUT_RD)
+            # self.socket.close()
+            print('shutdown')
+        
+

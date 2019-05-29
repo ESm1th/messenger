@@ -19,7 +19,7 @@ class RequestInterface:
         )
 
     def prepare(self):
-        raw_data = json.dumps(self.data).encode(Client().encoding_name)
+        raw_data = json.dumps(self.data)
         return raw_data
 
 

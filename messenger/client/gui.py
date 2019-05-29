@@ -20,6 +20,8 @@ from PyQt5.QtGui import (
 )
 from PyQt5.QtCore import (
     Qt,
+    QThread,
+    pyqtSignal
 )
 from typing import Dict
 
@@ -32,13 +34,7 @@ from observers import (
     RegistrationFormListener
 )
 
-from settings import (
-    HOST,
-    PORT,
-    BUFFER_SIZE,
-    ENCODING_NAME,
-    BASE_DIR
-)
+import settings
 
 
 class TitleMixin:
@@ -64,7 +60,7 @@ class MainWindowButton(QPushButton):
         self.setFixedSize(200, 40)
 
 
-class Form(QFormLayout):
+class FormFactory(QFormLayout):
     """
     Custom form layout for simplefied form creation process.
     Accepts in constructor or sets 'field' names and then creates rows.
@@ -82,16 +78,16 @@ class Form(QFormLayout):
             return {element: None for element in structure}
         return structure
 
-    def construct(self):
+    def construct(self) -> None:
         for field, value in self.fields.items():
 
             line_edit = TitledLineEdit(title=field)
 
             if value:
-                line_edit.setText(value)
+                line_edit.setText(str(value))
                 line_edit.setAlignment(Qt.AlignCenter)
 
-            self.addRow(QLabel(field), line_edit)
+            self.addRow(QLabel(field.replace('_', ' ').title()), line_edit)
 
 
 class StatusBar(QStatusBar):
@@ -104,6 +100,7 @@ class StatusBar(QStatusBar):
 
     def init_ui(self):
         self.setFixedHeight(20)
+        self.setSizeGripEnabled(False)
         self.setStyleSheet(
             """
             QStatusBar {\
@@ -112,28 +109,13 @@ class StatusBar(QStatusBar):
                 }
             """
         )
-
-        status_label = QLabel('Status:')
-        self.connection = QLabel('Disconnected')
-
-        host_label = QLabel('Ip address:')
-        self.host = QLabel()
-
-        port_label = QLabel('Port number:')
-        self.port = QLabel()
-
-        self.addPermanentWidget(status_label)
-        self.addPermanentWidget(self.connection)
-        self.addPermanentWidget(host_label)
-        self.addPermanentWidget(self.host)
-        self.addPermanentWidget(port_label)
-        self.addPermanentWidget(self.port)
-
-        self.setSizeGripEnabled(False)
+        self.showMessage(f'Status...')
 
 
 class ClientGui(QWidget):
     """Client application base window"""
+
+    client = Client()
 
     def __init__(self):
         super().__init__()
@@ -160,7 +142,7 @@ class ClientGui(QWidget):
 
         image_label = QLabel('Image')
         image_label.setFixedSize(200, 200)
-        image = QPixmap(os.path.join(BASE_DIR, 'media/Chat.png'))
+        image = QPixmap(os.path.join(settings.BASE_DIR, 'media/Chat.png'))
         image_label.setPixmap(image)
         image_label.setScaledContents(True)
 
@@ -195,7 +177,7 @@ class ClientGui(QWidget):
     def register_dialog(self):
         """Opens registration dialog form"""
 
-        dialog = RegistrationForm()
+        dialog = RegistrationForm(self.client)
         self.setVisible(False)
         dialog.exec_()
         self.setVisible(True)
@@ -203,7 +185,7 @@ class ClientGui(QWidget):
     def settings_dialog(self):
         """Opens settings dialog form"""
 
-        dialog = SettingsForm()
+        dialog = SettingsForm(self.client)
         self.setVisible(False)
         dialog.exec_()
         self.setVisible(True)
@@ -211,31 +193,32 @@ class ClientGui(QWidget):
 
 class SettingsForm(QDialog):
 
-    def __init__(self):
+    def __init__(self, client):
         super().__init__()
+        self.settings = client.settings
         self.init_ui()
 
     def init_ui(self):
 
         titles = {
-            'host': str(HOST),
-            'port': str(PORT),
-            'buffer': str(BUFFER_SIZE),
-            'encoding': str(ENCODING_NAME)
+            'host': self.settings.host,
+            'port': self.settings.port,
+            'buffer_size': self.settings.buffer_size,
+            'encoding_name': self.settings.encoding_name
         }
 
-        layout = Form(fields=titles)
-        layout.construct()
+        settings_layout = FormFactory(fields=titles)
+        settings_layout.construct()
 
         confirm_button = QPushButton('Confirm')
-        default_button = QPushButton('Set default')
+        confirm_button.clicked.connect(self.update_settings)
+
         cancel_button = QPushButton('Cancel')
-        cancel_button.clicked.connect(self.reject)
+        cancel_button.clicked.connect(self.close)
 
         v_layout = QVBoxLayout()
-        v_layout.addLayout(layout)
+        v_layout.addLayout(settings_layout)
         v_layout.addWidget(confirm_button)
-        v_layout.addWidget(default_button)
         v_layout.addWidget(cancel_button)
 
         self.setLayout(v_layout)
@@ -243,15 +226,34 @@ class SettingsForm(QDialog):
         self.setWindowTitle('Settings')
         self.setModal(True)
 
+    def update_settings(self):
+        widgets = self.findChildren(TitledLineEdit)
+
+        new_settings = {
+            widget.title: (
+                widget.text()
+                if widget.title not in ('port', 'buffer_size')
+                else int(widget.text())
+            )
+            for widget in widgets
+        }
+        self.settings.update(new_settings)
+
+        self.close()
+
 
 class RegistrationForm(QDialog):
 
     request_creator = RegistrationRequestCreator()
+    change_state = pyqtSignal(str)
 
-    def __init__(self):
-        self.listener = RegistrationFormListener(self, Client().notifier)
+    def __init__(self, client):
         super().__init__()
+        self.client = client
+        self.listener = RegistrationFormListener(self, self.client.notifier)
         self.init_ui()
+        self.change_state.connect(self.client.set_state)
+
 
     def init_ui(self):
 
@@ -269,37 +271,14 @@ class RegistrationForm(QDialog):
         status_log_layout.addWidget(self.status_log_info)
         status_log_group.setLayout(status_log_layout)
 
-        self.username_la = QLabel('Username')
-        self.username_le = TitledLineEdit(title='username')
-
-        self.first_name_la = QLabel('First name')
-        self.first_name_le = TitledLineEdit(title='first_name')
-
-        self.second_name_la = QLabel('Second name')
-        self.second_name_le = TitledLineEdit('second_name')
-
-        self.email_la = QLabel('Email')
-        self.email_le = TitledLineEdit('email')
-
-        self.phone_la = QLabel('Phone')
-        self.phone_le = TitledLineEdit('phone')
-
-        self.password_la = QLabel('Password')
-        self.password_le = TitledLineEdit('password')
-
-        self.reapeat_password_la = QLabel('Repeat password')
-        self.reapeat_password_le = TitledLineEdit('repeat_password')
-
-        form_layout = QFormLayout()
-        form_layout.addRow(self.username_la, self.username_le)
-        form_layout.addRow(self.first_name_la, self.first_name_le)
-        form_layout.addRow(self.second_name_la, self.second_name_le)
-        form_layout.addRow(self.email_la, self.email_le)
-        form_layout.addRow(self.phone_la, self.phone_le)
-        form_layout.addRow(self.password_la, self.password_le)
-        form_layout.addRow(
-            self.reapeat_password_la, self.reapeat_password_le
+        titles = (
+            'username',
+            'password',
+            'repeat_password'
         )
+
+        form_layout = FormFactory(fields=titles)
+        form_layout.construct()
 
         self.confirm_button = QPushButton('Send')
         self.confirm_button.clicked.connect(self.send_registration_request)
@@ -334,12 +313,20 @@ class RegistrationForm(QDialog):
         }
 
         request = self.request_creator.create_request(user_data)
-        raw_data = request.prepare()
+        raw_data = request.prepare().encode(self.client.settings.encoding_name)
+        self.client.connect()
 
-        send_thread = threading.Thread(
-            target=Client().send_request(raw_data)
-        )
+        # response_thread = threading.Thread(target=self.client.get_response)
+        # response_thread.start()
+        send_thread = threading.Thread(target=self.client.send_request, args=(raw_data,))
         send_thread.start()
+        send_thread.join()
+        
+        print(self.client.socket.fileno())
+        self.change_state.emit('Disconnected')
+        print(self.client.state)
+        self.client.close()
+        print('after close')
 
 
 if __name__ == '__main__':
