@@ -77,8 +77,8 @@ class Login(AuthBase):
 
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
-            contacts = [str(contact.contact_id) for contact in user.contacts]
-
+            contacts = [contact.user.username for contact in user.contacts]
+            
             if user:
                 password = self.request.data.get('password')
 

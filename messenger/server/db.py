@@ -90,6 +90,7 @@ class Client(CoreMixin, Base):  # type: ignore
     # relationships
     history = relationship('ClientHistory', back_populates='client')
 
+
     def __repr__(self) -> str:
         return '<{0}(first_name={1}, second_name={2}, username={3})>'.format(
             self.__class__.__name__,
@@ -102,7 +103,7 @@ class Client(CoreMixin, Base):  # type: ignore
     def get_client(cls, session, username) -> Union['Client', None]:
         with SessionScope(session) as session:
             return session.query(cls).options(
-                subqueryload(cls.contacts)
+                subqueryload(cls.contacts).subqueryload('user')
             ).filter(cls.username == username).one_or_none()
 
 
@@ -135,4 +136,35 @@ class Contact(CoreMixin, Base):  # type: ignore
     user = relationship('Client', foreign_keys=contact_id)
 
 
+class Chat(CoreMixin, Base):
+    """Represents 'chats' table in database"""
+
+    participant_id = Column(Integer, ForeignKey('clients.id'))
+
+    # participant = relationship('Client')
+    messages = relationship('Message', back_populates='chat')
+    participant = relationship(
+        'Client',
+        backref='chats',
+        primaryjoin='Chat.participant_id==Client.id'
+    )
+
+
+class Message(CoreMixin, Base):
+    """Represents 'messages' table in database"""
+
+    sender_id = Column(Integer, ForeignKey('clients.id'))
+    receiver_id = Column(Integer, ForeignKey('clients.id'))
+    chat_id = Column(Integer, ForeignKey('chats.id'))
+    text = Column(String)
+
+    chat = relationship('Chat', back_populates='messages')
+
+
 Base.metadata.create_all(engine)
+
+if __name__ == '__main__':
+    user = Client.get_client(Session, 'john')
+    print('Client: ', user)
+    print('Contacts: ', user.contacts)
+    print('Contact user: ', user.contacts[0].user.username)

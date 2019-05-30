@@ -35,6 +35,11 @@ class LoginRequest(RequestInterface):
     action = 'login'
 
 
+class ChatRequest(RequestInterface):
+
+    action = 'chat'
+
+
 class RequestCreatorInterface(ABC):
     """Abstract base class for factory method pattern"""
 
@@ -56,3 +61,10 @@ class LoginRequestCreator(RequestCreatorInterface):
 
     def create_request(self, data):
         return LoginRequest(data)
+
+
+class ChatRequestCreator(RequestCreatorInterface):
+    """Create ChatRequest object"""
+
+    def create_request(self, data):
+        return ChatRequest(data)

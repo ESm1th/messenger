@@ -35,7 +35,8 @@ from typing import Dict
 from core import Client
 from requests import (
     RegistrationRequestCreator,
-    LoginRequestCreator
+    LoginRequestCreator,
+    ChatRequestCreator
 )
 from observers import (
     StateListener,
@@ -251,12 +252,14 @@ class RegistrationForm(QDialog):
 class LoginForm(QDialog):
 
     request_creator = LoginRequestCreator()
+    close_window = pyqtSignal()
 
     def __init__(self, client, parent):
         super().__init__()
         self.client = client
         self.parent = parent
         self.listener = LoginListener(self, self.client.notifier)
+        self.close_window.connect(self.close)
         self.init_ui()
 
     def init_ui(self):
@@ -365,23 +368,24 @@ class SettingsForm(QWidget):
 
 class ChatWindow(QDialog):
 
+    request_creator = ChatRequestCreator()
+
     def __init__(self, contacts):
         super().__init__()
+        self.chats_data = {}
         self.contacts = contacts
         self.init_model()
         self.init_ui()
 
     def init_model(self):
-
         self.model = QStringListModel(self.contacts)
 
     def init_ui(self):
-
         column_view = QColumnView()
         column_view.setModel(self.model)
         column_view.setFixedWidth(100)
         column_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        column_view.clicked.connect(self.cl)
+        column_view.doubleClicked.connect(self.send_chat_request)
 
         lbl_contacts = QLabel('Contacts')
 
@@ -393,12 +397,11 @@ class ChatWindow(QDialog):
         v_contacts_layout.addWidget(btn_add_contact)
 
         lbl_chat = QLabel('Chat window')
-
         self.chat_text_edit = QTextEdit()
         self.chat_text_edit.setReadOnly(True)
+        self.chat_text_edit.setDisabled(True)
 
         lbl_enter = QLabel('Enter message')
-
         self.message_line_edit = QLineEdit()
 
         v_chat_layout = QVBoxLayout()
@@ -416,8 +419,17 @@ class ChatWindow(QDialog):
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle('Chat')
 
-    def cl(self, item):
-        print(item.data())
+    def send_chat_request(self, item):
+
+        request = self.request_creator.create_request(
+            {'contact_username': item.data()}
+        )
+        raw_data = request.prepare().encode(self.client.settings.encoding_name)
+
+        send_thread = threading.Thread(
+            target=self.client.send_request, args=(raw_data,)
+        )
+        send_thread.start()
 
 
 class ClientGui(CenterMixin, QWidget):

@@ -106,4 +106,4 @@ class LoginListener(Listener):
 
         if kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs.get('contacts'))
-            self.employer.close()
+            self.employer.close_window.emit()
