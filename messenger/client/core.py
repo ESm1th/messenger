@@ -155,6 +155,7 @@ class Client(metaclass=ClientVerifier):
                             raw_response.decode(self.settings.encoding_name)
                         )
                     )
+                    print('response: ', response)
                     self.notifier.notify('response', **response)
             except Exception as error:
                 self.state = False

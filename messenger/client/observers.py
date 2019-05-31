@@ -37,6 +37,8 @@ class BaseNotifier(Notifier):
             self._listeners[event].append(listener)
         else:
             self._listeners[event] = [listener]
+        print(event)
+        print(self._listeners)
 
     def remove_listener(self, event: str, listener: 'Listener') -> None:
         """Remove listener from notifier"""
@@ -90,6 +92,7 @@ class ResponseListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs):
+        print(self.employer.status_log_code)
         self.employer.status_log_code.setText(
             f"{kwargs.get('code')}"
         )
@@ -104,6 +107,16 @@ class LoginListener(Listener):
 
     def refresh(self, *args, **kwargs) -> None:
 
-        if kwargs.get('code') == 200:
-            self.employer.parent.chat.emit(kwargs.get('contacts'))
-            self.employer.close_window.emit()
+        if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
+            self.employer.parent.chat.emit(kwargs)
+            # self.employer.close_window.emit()
+
+
+class ChatListener(Listener):
+
+    event = 'chat'
+
+    def refresh(self, *args, **kwargs) -> None:
+        pass
+        # if kwargs.get('code') == 200:
+

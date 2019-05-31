@@ -22,7 +22,7 @@ class AuthBase(RequestHandler):
         Checks if username and password are not None
         and if they are not empty string
         """
-
+        print('in validate')
         username = data.get('username')
 
         if username != '' and username:
@@ -74,20 +74,23 @@ class Login(AuthBase):
 
     def process(self):
         if self.validate_request(self.request.data):
-
+            ('before get user')
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
-            contacts = [contact.user.username for contact in user.contacts]
-            
+            print('after get user')
             if user:
                 password = self.request.data.get('password')
 
                 if password == user.password:
-
+                    contacts = {
+                        contact.user.username: contact.user.id
+                        for contact in user.contacts
+                    }
                     return Response(
                         self.request, {
                             'code': 200,
                             'info': 'Client logged in',
+                            'user_id': user.id,
                             'contacts': contacts
                         }
                     )

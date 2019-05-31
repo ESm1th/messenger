@@ -370,17 +370,23 @@ class ChatWindow(QDialog):
 
     request_creator = ChatRequestCreator()
 
-    def __init__(self, contacts):
+    def __init__(self, client, **kwargs):
         super().__init__()
         self.chats_data = {}
-        self.contacts = contacts
+        self.client = client
+        self.user_id = kwargs.get('user_id')
+        self.contacts = kwargs.get('contacts')
         self.init_model()
         self.init_ui()
 
     def init_model(self):
-        self.model = QStringListModel(self.contacts)
+        self.model = QStringListModel(self.contacts.keys())
 
     def init_ui(self):
+        status_group = StatusGroup(
+            'Status group', notifier=self.client.notifier
+        )
+
         column_view = QColumnView()
         column_view.setModel(self.model)
         column_view.setFixedWidth(100)
@@ -414,7 +420,11 @@ class ChatWindow(QDialog):
         h_box_layout.addLayout(v_contacts_layout)
         h_box_layout.addLayout(v_chat_layout)
 
-        self.setLayout(h_box_layout)
+        v_main_layout = QVBoxLayout()
+        v_main_layout.addWidget(status_group)
+        v_main_layout.addLayout(h_box_layout)
+
+        self.setLayout(v_main_layout)
         self.resize(700, 500)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle('Chat')
@@ -422,7 +432,10 @@ class ChatWindow(QDialog):
     def send_chat_request(self, item):
 
         request = self.request_creator.create_request(
-            {'contact_username': item.data()}
+            {
+                'contact_username': item.data(),
+                'user': self.user_id
+            }
         )
         raw_data = request.prepare().encode(self.client.settings.encoding_name)
 
@@ -436,7 +449,8 @@ class ClientGui(CenterMixin, QWidget):
     """Client application base window"""
 
     client = Client()
-    chat = pyqtSignal(list)
+    active_chat: int
+    chat = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
@@ -510,8 +524,8 @@ class ClientGui(CenterMixin, QWidget):
         dialog.exec_()
         self.setVisible(True)
 
-    def chat_window(self, contacts):
-        dialog = ChatWindow(contacts)
+    def chat_window(self, response):
+        dialog = ChatWindow(self.client, **response)
         self.setVisible(False)
         dialog.exec_()
         self.setVisible(True)

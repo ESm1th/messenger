@@ -5,6 +5,7 @@ from core import (
 )
 from db import (
     Client,
+    Chat
 )
 
 
@@ -45,3 +46,8 @@ class Contacts(RequestHandler):
                 )
         else:
             return Response_400(self.request)
+
+
+class Chat(RequestHandler):
+
+    model = Chat
