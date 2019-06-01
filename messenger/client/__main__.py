@@ -15,6 +15,9 @@ from core import (
 )
 from gui import ClientGui
 
+import faulthandler
+faulthandler.enable()
+
 
 # getting values from constants in 'settings' module
 address = getattr(settings, 'ADDRESS', '')

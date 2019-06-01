@@ -32,7 +32,9 @@ from PyQt5.QtCore import (
 )
 from typing import Dict
 
-from core import Client
+from core import (
+    Client,
+)
 from requests import (
     RegistrationRequestCreator,
     LoginRequestCreator,
@@ -40,7 +42,7 @@ from requests import (
 )
 from observers import (
     StateListener,
-    ResponseListener,
+    StatusGroupListener,
     LoginListener
 )
 
@@ -62,7 +64,7 @@ class ChatThread(QThread):
     def __init__(self, widget):
         super().__init__()
         self.widget = widget
-    
+
     def run(self):
         self.widget()
 
@@ -142,9 +144,8 @@ class StatusGroup(QGroupBox):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args)
-        self.listener = ResponseListener(
-            self, kwargs.get('notifier')
-        )
+        self.client = kwargs.get('client')
+        self.listener = StatusGroupListener(self, self.client.notifier)
         self.construct()
 
     def construct(self):
@@ -160,6 +161,10 @@ class StatusGroup(QGroupBox):
         status_log_layout.addWidget(self.status_log_code)
         status_log_layout.addWidget(self.status_log_info)
         self.setLayout(status_log_layout)
+
+    def update(self):
+        self.status_log_code.setText(self.client.status.code or None)
+        self.status_log_info.setText(self.client.status.info or None)
 
 
 class StatusBar(QStatusBar):
@@ -186,18 +191,29 @@ class StatusBar(QStatusBar):
         self.showMessage(f'Status...')
 
 
-class RegistrationForm(QDialog):
+class CommonMixin:
+
+    def __init__(self, **kwargs):
+        super().__init__()
+        self.client = kwargs.get('client')
+        self.parent = kwargs.get('parent')
+
+    def closeEvent(self, event):
+        self.parent.show()
+        event.accept()
+
+
+class RegistrationForm(CommonMixin, QDialog):
 
     request_creator = RegistrationRequestCreator()
 
-    def __init__(self, client):
-        super().__init__()
-        self.client = client
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.init_ui()
 
     def init_ui(self):
 
-        status_box = StatusGroup('Status log', notifier=self.client.notifier)
+        status_box = StatusGroup('Status log', client=self.client)
 
         titles = (
             'username',
@@ -212,7 +228,7 @@ class RegistrationForm(QDialog):
         self.confirm_button.clicked.connect(self.send_registration_request)
 
         self.cancel_button = QPushButton('Exit')
-        self.cancel_button.clicked.connect(self.reject)
+        self.cancel_button.clicked.connect(self.close)
 
         user_data_group = QGroupBox('User data')
         user_data_group.setLayout(form_layout)
@@ -249,22 +265,20 @@ class RegistrationForm(QDialog):
         send_thread.start()
 
 
-class LoginForm(QDialog):
+class LoginForm(CommonMixin, QDialog):
 
     request_creator = LoginRequestCreator()
     close_window = pyqtSignal()
 
-    def __init__(self, client, parent):
-        super().__init__()
-        self.client = client
-        self.parent = parent
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.listener = LoginListener(self, self.client.notifier)
         self.close_window.connect(self.close)
         self.init_ui()
 
     def init_ui(self):
 
-        status_box = StatusGroup('Status log', notifier=self.client.notifier)
+        status_box = StatusGroup('Status log', client=self.client)
 
         titles = (
             'username',
@@ -314,12 +328,17 @@ class LoginForm(QDialog):
         )
         send_thread.start()
 
+    def closeEvent(self, event):
+        if not self.sender().__class__ is type(self):
+            self.parent.show()
+        event.accept()
 
-class SettingsForm(QWidget):
 
-    def __init__(self, client):
-        super().__init__()
-        self.settings = client.settings
+class SettingsForm(CommonMixin, QDialog):
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.settings = self.client.settings
         self.init_ui()
 
     def init_ui(self):
@@ -366,32 +385,38 @@ class SettingsForm(QWidget):
         self.close()
 
 
-class ChatWindow(QDialog):
+class ChatWindow(CommonMixin, QDialog):
 
     request_creator = ChatRequestCreator()
+    active_chat: int
 
-    def __init__(self, client, **kwargs):
-        super().__init__()
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
         self.chats_data = {}
-        self.client = client
+
+    def __call__(self, kwargs):
         self.user_id = kwargs.get('user_id')
         self.contacts = kwargs.get('contacts')
-        self.init_model()
+        self.init_model(self.contacts.keys())
         self.init_ui()
+        self.show()
 
-    def init_model(self):
-        self.model = QStringListModel(self.contacts.keys())
+    def init_model(self, contacts):
+        if hasattr(self, 'model'):
+            self.model.setStringList(contacts)
+        else:
+            self.model = QStringListModel(contacts)
 
     def init_ui(self):
         status_group = StatusGroup(
-            'Status group', notifier=self.client.notifier
+            'Status log', client=self.client
         )
 
-        column_view = QColumnView()
-        column_view.setModel(self.model)
-        column_view.setFixedWidth(100)
-        column_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        column_view.doubleClicked.connect(self.send_chat_request)
+        self.column_view = QColumnView()
+        self.column_view.setModel(self.model)
+        self.column_view.setFixedWidth(100)
+        self.column_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.column_view.doubleClicked.connect(self.send_chat_request)
 
         lbl_contacts = QLabel('Contacts')
 
@@ -399,7 +424,7 @@ class ChatWindow(QDialog):
 
         v_contacts_layout = QVBoxLayout()
         v_contacts_layout.addWidget(lbl_contacts)
-        v_contacts_layout.addWidget(column_view)
+        v_contacts_layout.addWidget(self.column_view)
         v_contacts_layout.addWidget(btn_add_contact)
 
         lbl_chat = QLabel('Chat window')
@@ -449,12 +474,19 @@ class ClientGui(CenterMixin, QWidget):
     """Client application base window"""
 
     client = Client()
-    active_chat: int
     chat = pyqtSignal(dict)
 
     def __init__(self):
         super().__init__()
         self.init_ui()
+
+        self.register_window = RegistrationForm(
+            client=self.client, parent=self
+        )
+        self.login_window = LoginForm(client=self.client, parent=self)
+        self.settings_window = SettingsForm(client=self.client, parent=self)
+        self.chat_window = ChatWindow(client=self.client, parent=self)
+
         self.chat.connect(self.chat_window)
         self.client_thread = ClientThread(self.client)
         self.client_thread.start()
@@ -505,30 +537,26 @@ class ClientGui(CenterMixin, QWidget):
     def register_dialog(self):
         """Opens registration dialog form"""
 
-        dialog = RegistrationForm(self.client)
+        self.register_window.show()
         self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
 
     def login_dialog(self):
-        dialog = LoginForm(self.client, self)
+        """Opens login dialog form"""
+
+        self.login_window.show()
         self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
 
     def settings_dialog(self):
         """Opens settings dialog form"""
 
-        dialog = SettingsForm(self.client)
+        self.settings_window.show()
         self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
 
     def chat_window(self, response):
-        dialog = ChatWindow(self.client, **response)
+        """Opens chat window"""
+
+        self.chat_window(response)
         self.setVisible(False)
-        dialog.exec_()
-        self.setVisible(True)
 
 
 if __name__ == '__main__':

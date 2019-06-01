@@ -51,3 +51,5 @@ class Contacts(RequestHandler):
 class Chat(RequestHandler):
 
     model = Chat
+
+    

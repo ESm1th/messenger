@@ -37,8 +37,6 @@ class BaseNotifier(Notifier):
             self._listeners[event].append(listener)
         else:
             self._listeners[event] = [listener]
-        print(event)
-        print(self._listeners)
 
     def remove_listener(self, event: str, listener: 'Listener') -> None:
         """Remove listener from notifier"""
@@ -65,7 +63,7 @@ class Listener(ABC):
         notifier.add_listener(self.event, self)
 
     @abstractmethod
-    def refresh(self, notifier: Notifier = None, *args, **kwargs) -> None:
+    def refresh(self, *args, **kwargs) -> None:
         pass
 
 
@@ -83,22 +81,24 @@ class StateListener(Listener):
         )
 
 
-class ResponseListener(Listener):
+class StatusListener(Listener):
     """
-    Listener that updates status log line edit fields
-    on 'StatusGroup' custom widget by response status code and info message.
+    Listener sets attributes to class 'core.Status' from response status code
+    and info message.
     """
 
     event = 'response'
 
     def refresh(self, *args, **kwargs):
-        print(self.employer.status_log_code)
-        self.employer.status_log_code.setText(
-            f"{kwargs.get('code')}"
-        )
-        self.employer.status_log_info.setText(
-            f"{kwargs.get('info')}"
-        )
+        self.employer.update(**kwargs)
+
+
+class StatusGroupListener(Listener):
+
+    event = 'response'
+
+    def refresh(self, *args, **kwargs):
+        self.employer.update()
 
 
 class LoginListener(Listener):
@@ -109,7 +109,7 @@ class LoginListener(Listener):
 
         if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs)
-            # self.employer.close_window.emit()
+            self.employer.close_window.emit()
 
 
 class ChatListener(Listener):
@@ -119,4 +119,3 @@ class ChatListener(Listener):
     def refresh(self, *args, **kwargs) -> None:
         pass
         # if kwargs.get('code') == 200:
-

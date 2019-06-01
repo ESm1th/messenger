@@ -7,11 +7,13 @@ from argparse import Namespace
 from dis import code_info
 
 import settings
-from observers import BaseNotifier
+from observers import (
+    BaseNotifier,
+    StatusListener
+)
 
 
 logger = logging.getLogger('client_logger')
-lock = threading.Lock()
 
 
 class SingletonMeta(type):
@@ -30,47 +32,15 @@ class Singleton(metaclass=SingletonMeta):
     pass
 
 
-class ClientVerifier(type):
+class Status(Singleton):
 
-    _instance = None
+    def __init__(self, notifier):
+        self.listener = StatusListener(self, notifier)
 
-    def __call__(self, *args, **kwargs):
-        if not self._instance:
-            self._instance = super().__call__(*args, **kwargs)
-        return self._instance
-
-    def __init__(self, cls, bases, cls_dict):
-        for attr, value in cls_dict.items():
-
-            if hasattr(value, '__call__'):
-                code_data = code_info(value)
-
-                for element in ['accept', 'listen']:
-                    if element in code_data:
-                        raise AttributeError(
-                            ' '.join(
-                                ['Client socket must not have',
-                                    '"accept" and "listen".',
-                                    f'calls in code. Check "{attr}" method']
-                            )
-                        )
-
-                if 'SOCK_' in code_data:
-                    if 'SOCK_STREAM' not in code_data:
-                        raise AttributeError(
-                            ' '.join(
-                                ['Only TCP socket type allowed,',
-                                    'but other was given']
-                            )
-                        )
-
-            elif not hasattr(value, '__call__'):
-                if type(value) == socket.socket:
-                    raise AttributeError(
-                        'Not allowed to create a socket at the class level'
-                    )
-
-        type.__init__(self, cls, bases, cls_dict)
+    def update(self, **kwargs):
+        for key, value in kwargs.items():
+            if key in ('code', 'info'):
+                setattr(self, key, str(value))
 
 
 class PortDescriptor:
@@ -116,12 +86,56 @@ class Settings(Singleton):
                 setattr(self, attr, value)
 
 
+class ClientVerifier(type):
+
+    _instance = None
+
+    def __call__(self, *args, **kwargs):
+        if not self._instance:
+            self._instance = super().__call__(*args, **kwargs)
+        return self._instance
+
+    def __init__(self, cls, bases, cls_dict):
+        for attr, value in cls_dict.items():
+
+            if hasattr(value, '__call__'):
+                code_data = code_info(value)
+
+                for element in ['accept', 'listen']:
+                    if element in code_data:
+                        raise AttributeError(
+                            ' '.join(
+                                ['Client socket must not have',
+                                    '"accept" and "listen".',
+                                    f'calls in code. Check "{attr}" method']
+                            )
+                        )
+
+                if 'SOCK_' in code_data:
+                    if 'SOCK_STREAM' not in code_data:
+                        raise AttributeError(
+                            ' '.join(
+                                ['Only TCP socket type allowed,',
+                                    'but other was given']
+                            )
+                        )
+
+            elif not hasattr(value, '__call__'):
+                if type(value) == socket.socket:
+                    raise AttributeError(
+                        'Not allowed to create a socket at the class level'
+                    )
+
+        type.__init__(self, cls, bases, cls_dict)
+
+
 class Client(metaclass=ClientVerifier):
 
     state = False
 
     def __init__(self, namespace: Namespace = None):
         self.notifier = BaseNotifier(self)
+        self.status = Status(self.notifier)
         self.settings = Settings()
 
     def make_socket(self):
@@ -155,7 +169,7 @@ class Client(metaclass=ClientVerifier):
                             raw_response.decode(self.settings.encoding_name)
                         )
                     )
-                    print('response: ', response)
+                    # print('response: ', response)
                     self.notifier.notify('response', **response)
             except Exception as error:
                 self.state = False
