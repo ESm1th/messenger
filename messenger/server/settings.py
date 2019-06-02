@@ -8,5 +8,6 @@ PORT = 8887
 CONNECTIONS = 7
 
 INSTALLED_MODULES = [
-    'auth'
+    'auth',
+    'chat'
 ]

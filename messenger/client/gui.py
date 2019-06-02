@@ -17,12 +17,11 @@ from PyQt5.QtWidgets import (
     QHBoxLayout,
     QVBoxLayout,
     QGroupBox,
-    QColumnView
+    QColumnView,
+    QAbstractItemView
 )
 from PyQt5.QtGui import (
     QPixmap,
-    QStandardItemModel,
-    QStandardItem
 )
 from PyQt5.QtCore import (
     Qt,
@@ -30,20 +29,24 @@ from PyQt5.QtCore import (
     QStringListModel,
     pyqtSignal
 )
-from typing import Dict
-
-from core import (
-    Client,
+from typing import (
+    Dict,
+    Tuple
 )
+
+from core import Client
 from requests import (
     RegistrationRequestCreator,
     LoginRequestCreator,
-    ChatRequestCreator
+    ChatRequestCreator,
+    AddContactRequestCreator,
+    DeleteContactRequestCreator
 )
 from observers import (
     StateListener,
     StatusGroupListener,
-    LoginListener
+    LoginListener,
+    ContactListener
 )
 
 import settings
@@ -136,6 +139,29 @@ class FormFactory(QFormLayout):
             self.addRow(QLabel(field.replace('_', ' ').title()), line_edit)
 
 
+class Sender:
+    """
+    Takes callers/parents 'RequestCreator' object,
+    then ctreates request by passing appropriate user data to
+    'send_request' method. Prepares request and then opens thread and sends
+    request within this thread.
+    """
+
+    def __init__(self, parent):
+        self.parent = parent
+
+    def send_request(self, data=None):
+        request = self.parent.request_creator.create_request(data)
+        raw_data = request.prepare().encode(
+            self.parent.client.settings.encoding_name
+        )
+
+        send_thread = threading.Thread(
+            target=self.parent.client.send_request, args=(raw_data,)
+        )
+        send_thread.start()
+
+
 class StatusGroup(QGroupBox):
     """
     Custom 'group box' widget.
@@ -166,6 +192,10 @@ class StatusGroup(QGroupBox):
         self.status_log_code.setText(self.client.status.code or None)
         self.status_log_info.setText(self.client.status.info or None)
 
+    def clear(self):
+        self.status_log_code.clear()
+        self.status_log_info.clear()
+
 
 class StatusBar(QStatusBar):
     """Base status bar widget"""
@@ -193,10 +223,18 @@ class StatusBar(QStatusBar):
 
 class CommonMixin:
 
+    clear_status_content = pyqtSignal()
+
     def __init__(self, **kwargs):
         super().__init__()
         self.client = kwargs.get('client')
         self.parent = kwargs.get('parent')
+
+    def show(self):
+        if hasattr(self, 'status_group'):
+            self.clear_status_content.connect(self.status_group.clear)
+            self.clear_status_content.emit()
+        super().show()
 
     def closeEvent(self, event):
         self.parent.show()
@@ -209,11 +247,12 @@ class RegistrationForm(CommonMixin, QDialog):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.sender = Sender(self)
         self.init_ui()
 
     def init_ui(self):
 
-        status_box = StatusGroup('Status log', client=self.client)
+        self.status_group = StatusGroup('Status log', client=self.client)
 
         titles = (
             'username',
@@ -240,7 +279,7 @@ class RegistrationForm(CommonMixin, QDialog):
         buttons_group.setLayout(h_layout)
 
         v_layout = QVBoxLayout()
-        v_layout.addWidget(status_box)
+        v_layout.addWidget(self.status_group)
         v_layout.addWidget(user_data_group)
         v_layout.addWidget(buttons_group)
 
@@ -256,13 +295,7 @@ class RegistrationForm(CommonMixin, QDialog):
             for widget in widgets
         }
 
-        request = self.request_creator.create_request(user_data)
-        raw_data = request.prepare().encode(self.client.settings.encoding_name)
-
-        send_thread = threading.Thread(
-            target=self.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
+        self.sender.send_request(user_data)
 
 
 class LoginForm(CommonMixin, QDialog):
@@ -272,13 +305,14 @@ class LoginForm(CommonMixin, QDialog):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self._sender = Sender(self)
         self.listener = LoginListener(self, self.client.notifier)
-        self.close_window.connect(self.close)
         self.init_ui()
+        self.close_window.connect(self.close)
 
     def init_ui(self):
 
-        status_box = StatusGroup('Status log', client=self.client)
+        self.status_group = StatusGroup('Status log', client=self.client)
 
         titles = (
             'username',
@@ -305,7 +339,7 @@ class LoginForm(CommonMixin, QDialog):
         buttons_group.setLayout(h_layout)
 
         v_box_layout = QVBoxLayout()
-        v_box_layout.addWidget(status_box)
+        v_box_layout.addWidget(self.status_group)
         v_box_layout.addWidget(credentials)
         v_box_layout.addWidget(buttons_group)
 
@@ -320,13 +354,7 @@ class LoginForm(CommonMixin, QDialog):
             for widget in widgets
         }
 
-        request = self.request_creator.create_request(user_data)
-        raw_data = request.prepare().encode(self.client.settings.encoding_name)
-
-        send_thread = threading.Thread(
-            target=self.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
+        self._sender.send_request(user_data)
 
     def closeEvent(self, event):
         if not self.sender().__class__ is type(self):
@@ -385,20 +413,83 @@ class SettingsForm(CommonMixin, QDialog):
         self.close()
 
 
+class AddContact(CommonMixin, QDialog):
+
+    request_creator = AddContactRequestCreator()
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self._sender = Sender(self)
+        self.init_ui()
+
+    def init_ui(self):
+
+        titles = ('contact',)
+
+        add_contact = FormFactory(fields=titles)
+        add_contact.construct()
+
+        add_contact_group = QGroupBox('Add contact')
+        add_contact_group.setLayout(add_contact)
+
+        add_button = QPushButton('Add')
+        add_button.clicked.connect(self.send_add_contact_request)
+
+        cancel_button = QPushButton('Cancel')
+        cancel_button.clicked.connect(self.close)
+
+        h_layout = QHBoxLayout()
+        h_layout.addWidget(add_button)
+        h_layout.addWidget(cancel_button)
+
+        v_layout = QVBoxLayout()
+        v_layout.addWidget(add_contact_group)
+        v_layout.addLayout(h_layout)
+
+        self.setLayout(v_layout)
+        self.setWindowTitle('Add contact')
+        self.setFixedSize(self.sizeHint())
+
+    def send_add_contact_request(self):
+        widgets = self.findChildren(TitledLineEdit)
+
+        user_data = {
+            widget.title: widget.text().strip()
+            for widget in widgets
+        }
+        user_data.update(
+            {'username': self.parent.username}
+        )
+
+        self._sender.send_request(user_data)
+
+
 class ChatWindow(CommonMixin, QDialog):
 
     request_creator = ChatRequestCreator()
+    delete_creator = DeleteContactRequestCreator()
+    update_model_add = pyqtSignal(dict)
+    update_model_delete = pyqtSignal(str)
     active_chat: int
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
+        self.sender = Sender(self)
+        self.listener = ContactListener(self, self.client.notifier)
+
+        self.update_model_add.connect(self.update_contacts_list_add)
+        self.update_model_delete.connect(self.update_contacts_list_delete)
+
+        self.add_contact_window = AddContact(client=self.client, parent=self)
         self.chats_data = {}
 
+        self.init_ui()
+
     def __call__(self, kwargs):
-        self.user_id = kwargs.get('user_id')
+        self.username = kwargs.get('username')
         self.contacts = kwargs.get('contacts')
         self.init_model(self.contacts.keys())
-        self.init_ui()
+        self.column_view.setModel(self.model)
         self.show()
 
     def init_model(self, contacts):
@@ -408,12 +499,11 @@ class ChatWindow(CommonMixin, QDialog):
             self.model = QStringListModel(contacts)
 
     def init_ui(self):
-        status_group = StatusGroup(
+        self.status_group = StatusGroup(
             'Status log', client=self.client
         )
 
         self.column_view = QColumnView()
-        self.column_view.setModel(self.model)
         self.column_view.setFixedWidth(100)
         self.column_view.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
         self.column_view.doubleClicked.connect(self.send_chat_request)
@@ -421,11 +511,16 @@ class ChatWindow(CommonMixin, QDialog):
         lbl_contacts = QLabel('Contacts')
 
         btn_add_contact = QPushButton('Add contact')
+        btn_add_contact.clicked.connect(self.add_contact)
+
+        btn_delete_contact = QPushButton('Delete contact')
+        btn_delete_contact.clicked.connect(self.delete_contact)
 
         v_contacts_layout = QVBoxLayout()
         v_contacts_layout.addWidget(lbl_contacts)
         v_contacts_layout.addWidget(self.column_view)
         v_contacts_layout.addWidget(btn_add_contact)
+        v_contacts_layout.addWidget(btn_delete_contact)
 
         lbl_chat = QLabel('Chat window')
         self.chat_text_edit = QTextEdit()
@@ -446,7 +541,7 @@ class ChatWindow(CommonMixin, QDialog):
         h_box_layout.addLayout(v_chat_layout)
 
         v_main_layout = QVBoxLayout()
-        v_main_layout.addWidget(status_group)
+        v_main_layout.addWidget(self.status_group)
         v_main_layout.addLayout(h_box_layout)
 
         self.setLayout(v_main_layout)
@@ -455,19 +550,50 @@ class ChatWindow(CommonMixin, QDialog):
         self.setWindowTitle('Chat')
 
     def send_chat_request(self, item):
+        print(self.column_view.currentIndex())
+        print(self.column_view.currentIndex().data())
+        print(self.contacts)
 
-        request = self.request_creator.create_request(
-            {
-                'contact_username': item.data(),
-                'user': self.user_id
-            }
+    def add_contact(self):
+        self.add_contact_window.show()
+        print(self.column_view.selectionMode())
+
+    def delete_contact(self):
+        contact = self.column_view.currentIndex().data()
+        contact_id = self.contacts.get(contact)
+        print('contact: ', contact)
+        print('contact_id', contact_id)
+        print(self.contacts)
+
+        user_data = {
+            'username': self.username,
+            'contact_id': contact_id,
+            'contact': contact
+        }
+
+        request = self.delete_creator.create_request(user_data)
+        raw_data = request.prepare().encode(
+            self.parent.client.settings.encoding_name
         )
-        raw_data = request.prepare().encode(self.client.settings.encoding_name)
 
         send_thread = threading.Thread(
-            target=self.client.send_request, args=(raw_data,)
+            target=self.parent.client.send_request, args=(raw_data,)
         )
         send_thread.start()
+
+    def update_contacts_list_add(self, contact: Dict) -> None:
+        print('before update', self.contacts)
+        self.contacts.update(contact)
+        print('after update', self.contacts)
+        self.model.setStringList(self.contacts.keys())
+        self.column_view.repaint()
+
+    def update_contacts_list_delete(self, contact: str) -> None:
+        print('before delete', self.contacts)
+        self.contacts.pop(contact)
+        print('after delete', self.contacts)
+        self.model.setStringList(self.contacts.keys())
+        self.column_view.repaint()
 
 
 class ClientGui(CenterMixin, QWidget):

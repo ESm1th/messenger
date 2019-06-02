@@ -65,6 +65,10 @@ class Response:
     data: Dict[str, Any] = {}
 
     def __init__(self, request: Request, data: Dict = {}) -> None:
+
+        if bool(self.data):
+            self.data.clear()
+
         self.data.update(
             {
                 'action': request.action,
@@ -323,11 +327,16 @@ class Server(metaclass=ServerVerifier):
 
         try:
             raw_request = client_socket.recv(self.settings.buffer_size)
-
+            logger.info(
+                'Request: {0}'.format(
+                    raw_request.decode(self.settings.encoding_name)
+                )
+            )
             if raw_request:
                 request_attributes = json.loads(
                     raw_request.decode(self.settings.encoding_name)
                 )
+
                 request = Request(**request_attributes)
                 return request
             else:
@@ -347,6 +356,7 @@ class Server(metaclass=ServerVerifier):
         """Send response to client"""
 
         logger.info(f'Response {response} sent.')
+        logger.info(response.prepare())
         return client_socket.send(
             json.dumps(response.prepare()).encode(self.settings.encoding_name)
         )
@@ -380,7 +390,7 @@ class Server(metaclass=ServerVerifier):
             self.state = 'Disconnected'
             self.connections.remove(self.socket)
             self.socket.close()
-        
+
             self.notifier.notify('state')
             self.notifier.notify('log', info='Server closed')
             logger.info('Server closed')
@@ -413,7 +423,7 @@ class Server(metaclass=ServerVerifier):
 
                     if request:
                         response = self.process_request(request)
-                        responses.update({sock.getpeername(): response})
+                        responses[sock.getpeername()] = response
                     else:
                         self.connections.remove(sock)
             if responses:

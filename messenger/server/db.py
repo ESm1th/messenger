@@ -90,7 +90,6 @@ class Client(CoreMixin, Base):  # type: ignore
     # relationships
     history = relationship('ClientHistory', back_populates='client')
 
-
     def __repr__(self) -> str:
         return '<{0}(first_name={1}, second_name={2}, username={3})>'.format(
             self.__class__.__name__,
@@ -132,7 +131,12 @@ class Contact(CoreMixin, Base):  # type: ignore
     contact_id = Column(Integer, ForeignKey('clients.id'))
 
     # relationships
-    owner = relationship('Client', foreign_keys=owner_id, backref='contacts')
+    owner = relationship(
+        'Client',
+        foreign_keys=owner_id,
+        backref='contacts',
+        lazy='subquery'
+    )
     user = relationship('Client', foreign_keys=contact_id)
 
 

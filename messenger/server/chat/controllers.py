@@ -5,21 +5,26 @@ from core import (
 )
 from db import (
     Client,
-    Chat
+    Contact,
+    Session,
+    SessionScope
 )
 
 
-class Contacts(RequestHandler):
+class ValidateMixin:
 
-    model = Client
-
-    def validate_request(self, data):
+    def validate_request(self):
         """
         Checks if username is not None
         and if it is not empty string
         """
 
-        return bool(data.get('username'))
+        return bool(self.request.data.get('username'))
+
+
+class Contacts(ValidateMixin, RequestHandler):
+
+    model = Client
 
     def process(self):
 
@@ -48,8 +53,85 @@ class Contacts(RequestHandler):
             return Response_400(self.request)
 
 
-class Chat(RequestHandler):
+class AddContact(ValidateMixin, RequestHandler):
 
-    model = Chat
+    model = Client
 
-    
+    def process(self):
+
+        if self.validate_request():
+            user = self.model.get_client(
+                Session, self.request.data.get('username')
+            )
+
+            contact = self.model.get_client(
+                Session, self.request.data.get('contact')
+            )
+
+            if contact:
+                if contact.id in (con.contact_id for con in user.contacts):
+                    return Response(
+                        self.request,
+                        data={'info': 'User already in your contact list.'}
+                    )
+                else:
+                    with SessionScope(self.session) as session:
+                        contact = Contact(
+                            owner_id=user.id, contact_id=contact.id
+                        )
+                        session.add(contact)
+                        session.commit()
+                        session.refresh(contact)
+
+                        return Response(
+                            self.request,
+                            data={
+                                'info': 'User was added to your contact list',
+                                'new_contact': {
+                                    contact.user.username: contact.id
+                                }
+                            }
+                        )
+            else:
+                return Response(
+                    self.request,
+                    {
+                        'code': 205,
+                        'info': 'Contact does not exist in database'
+                    }
+                )
+
+
+class DeleteContact(ValidateMixin, RequestHandler):
+
+    model = Contact
+
+    def process(self):
+
+        if self.validate_request():
+
+            with SessionScope(self.session) as session:
+
+                contact = session.query(self.model).get(
+                    self.request.data.get('contact_id')
+                )
+
+                if contact:
+                    session.delete(contact)
+                    session.commit()
+
+                    return Response(
+                        self.request,
+                        data={
+                                'info': 'Contact has been deleted.',
+                                'contact': self.request.data.get('contact')
+                            }
+                    )
+                else:
+                    return Response(
+                        self.request,
+                        {
+                            'code': 205,
+                            'info': 'Contact does not exist in database'
+                        }
+                    )

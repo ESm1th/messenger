@@ -38,6 +38,16 @@ class ChatRequest(RequestInterface):
     action = 'chat'
 
 
+class AddContactRequest(RequestInterface):
+
+    action = 'add_contact'
+
+
+class DeleteContactRequest(RequestInterface):
+
+    action = 'delete_contact'
+
+
 class RequestCreatorInterface(ABC):
     """Abstract base class for factory method pattern"""
 
@@ -66,3 +76,17 @@ class ChatRequestCreator(RequestCreatorInterface):
 
     def create_request(self, data):
         return ChatRequest(data)
+
+
+class AddContactRequestCreator(RequestCreatorInterface):
+    """Create AddContactRequest object"""
+
+    def create_request(self, data):
+        return AddContactRequest(data)
+
+
+class DeleteContactRequestCreator(RequestCreatorInterface):
+    """Create DeleteContactRequest object"""
+
+    def create_request(self, data):
+        return DeleteContactRequest(data)

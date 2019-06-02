@@ -112,10 +112,16 @@ class LoginListener(Listener):
             self.employer.close_window.emit()
 
 
-class ChatListener(Listener):
+class ContactListener(Listener):
 
-    event = 'chat'
+    event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-        pass
-        # if kwargs.get('code') == 200:
+
+        if kwargs.get('code') == 200:
+
+            if kwargs.get('action') == 'add_contact':
+                self.employer.update_model_add.emit(kwargs.get('new_contact'))
+
+            elif kwargs.get('action') == 'delete_contact':
+                self.employer.update_model_delete.emit(kwargs.get('contact'))
