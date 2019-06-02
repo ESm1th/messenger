@@ -7,18 +7,15 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QDialog,
     QDesktopWidget,
-    QMdiArea,
     QStatusBar,
     QLabel,
     QLineEdit,
-    QListView,
     QPushButton,
     QTextEdit,
     QHBoxLayout,
     QVBoxLayout,
     QGroupBox,
     QColumnView,
-    QAbstractItemView
 )
 from PyQt5.QtGui import (
     QPixmap,
@@ -29,10 +26,7 @@ from PyQt5.QtCore import (
     QStringListModel,
     pyqtSignal
 )
-from typing import (
-    Dict,
-    Tuple
-)
+from typing import Dict
 
 from core import Client
 from requests import (
@@ -481,15 +475,14 @@ class ChatWindow(CommonMixin, QDialog):
         self.update_model_delete.connect(self.update_contacts_list_delete)
 
         self.add_contact_window = AddContact(client=self.client, parent=self)
-        self.chats_data = {}
 
         self.init_ui()
+        self.chats_data = {}
 
     def __call__(self, kwargs):
         self.username = kwargs.get('username')
         self.contacts = kwargs.get('contacts')
         self.init_model(self.contacts.keys())
-        self.column_view.setModel(self.model)
         self.show()
 
     def init_model(self, contacts):
@@ -556,14 +549,10 @@ class ChatWindow(CommonMixin, QDialog):
 
     def add_contact(self):
         self.add_contact_window.show()
-        print(self.column_view.selectionMode())
 
     def delete_contact(self):
         contact = self.column_view.currentIndex().data()
         contact_id = self.contacts.get(contact)
-        print('contact: ', contact)
-        print('contact_id', contact_id)
-        print(self.contacts)
 
         user_data = {
             'username': self.username,
@@ -582,16 +571,12 @@ class ChatWindow(CommonMixin, QDialog):
         send_thread.start()
 
     def update_contacts_list_add(self, contact: Dict) -> None:
-        print('before update', self.contacts)
         self.contacts.update(contact)
-        print('after update', self.contacts)
         self.model.setStringList(self.contacts.keys())
         self.column_view.repaint()
 
     def update_contacts_list_delete(self, contact: str) -> None:
-        print('before delete', self.contacts)
         self.contacts.pop(contact)
-        print('after delete', self.contacts)
         self.model.setStringList(self.contacts.keys())
         self.column_view.repaint()
 

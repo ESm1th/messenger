@@ -166,9 +166,3 @@ class Message(CoreMixin, Base):
 
 
 Base.metadata.create_all(engine)
-
-if __name__ == '__main__':
-    user = Client.get_client(Session, 'john')
-    print('Client: ', user)
-    print('Contacts: ', user.contacts)
-    print('Contact user: ', user.contacts[0].user.username)
