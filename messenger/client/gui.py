@@ -477,12 +477,14 @@ class ChatWindow(CommonMixin, QDialog):
         self.add_contact_window = AddContact(client=self.client, parent=self)
 
         self.init_ui()
+
         self.chats_data = {}
 
     def __call__(self, kwargs):
         self.username = kwargs.get('username')
         self.contacts = kwargs.get('contacts')
         self.init_model(self.contacts.keys())
+        self.column_view.setModel(self.model)
         self.show()
 
     def init_model(self, contacts):

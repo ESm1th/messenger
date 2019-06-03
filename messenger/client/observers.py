@@ -106,7 +106,7 @@ class LoginListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-
+        print('Login kwargs: ', kwargs)
         if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs)
             self.employer.close_window.emit()
