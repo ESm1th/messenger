@@ -72,7 +72,10 @@ class AddContact(ValidateMixin, RequestHandler):
                 if contact.id in (con.contact_id for con in user.contacts):
                     return Response(
                         self.request,
-                        data={'info': 'User already in your contact list.'}
+                        data={
+                            'code': 205,
+                            'info': 'User already in your contact list.'
+                        }
                     )
                 else:
                     with SessionScope(self.session) as session:
