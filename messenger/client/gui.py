@@ -126,6 +126,9 @@ class FormFactory(QFormLayout):
 
             line_edit = TitledLineEdit(title=field)
 
+            if 'password' in field:
+                line_edit.setEchoMode(QLineEdit.Password)
+
             if value:
                 line_edit.setText(str(value))
                 line_edit.setAlignment(Qt.AlignCenter)
