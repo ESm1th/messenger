@@ -12,6 +12,10 @@ class RequestInterface:
     data: Dict = {}
 
     def __init__(self, user_data: Dict = {}) -> None:
+
+        if bool(self.data):
+            self.data.clear()
+
         self.data.update(
             {'action': self.action, 'time': self.timestamp, 'data': user_data}
         )
@@ -35,7 +39,17 @@ class LoginRequest(RequestInterface):
 
 class ChatRequest(RequestInterface):
 
-    action = 'chat'
+    action = 'get_chat'
+
+
+class MessageRequest(RequestInterface):
+
+    action = 'add_message'
+
+
+class MessageListenRequest(RequestInterface):
+
+    action = 'message_listener'
 
 
 class AddContactRequest(RequestInterface):
@@ -90,3 +104,18 @@ class DeleteContactRequestCreator(RequestCreatorInterface):
 
     def create_request(self, data):
         return DeleteContactRequest(data)
+
+
+class MessageRequestCreator(RequestCreatorInterface):
+    """Create MessageRequest object"""
+
+    def create_request(self, data):
+        return MessageRequest(data)
+
+
+class MessageListenRequestCreator(RequestCreatorInterface):
+
+    def create_request(self, data):
+        """Create MessageListenRequest object"""
+
+        return MessageListenRequest(data)

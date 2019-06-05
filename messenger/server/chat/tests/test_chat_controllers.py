@@ -11,7 +11,7 @@ from db import (
 )
 from chat.controllers import (
     Contacts,
-    Chat
+    GetChat
 )
 from core import Request
 
@@ -113,6 +113,7 @@ def test_chat(
     fill_db,
     chat_valid_request
 ):
-    response = Chat(chat_valid_request, make_session).process()
-    print(response)
+    response = GetChat(chat_valid_request, make_session).process()
+
     assert response.data.get('code') == 200
+    assert response.data.get('messages') == []

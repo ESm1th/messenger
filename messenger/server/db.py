@@ -151,7 +151,12 @@ class Contact(CoreMixin, Base):  # type: ignore
         backref='contacts',
         lazy='subquery'
     )
-    user = relationship('Client', foreign_keys=contact_id)
+    user = relationship(
+        'Client',
+        foreign_keys=contact_id,
+        backref='contact',
+        lazy='subquery'
+    )
 
 
 class Chat(CoreMixin, Base):

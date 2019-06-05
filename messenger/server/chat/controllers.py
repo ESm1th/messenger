@@ -7,6 +7,7 @@ from db import (
     Client,
     Chat,
     Contact,
+    Message,
     Session,
     SessionScope
 )
@@ -141,9 +142,7 @@ class DeleteContact(ValidateMixin, RequestHandler):
                     )
 
 
-class Chat(ValidateMixin, RequestHandler):
-
-    model = Chat
+class GetChat(ValidateMixin, RequestHandler):
 
     def process(self):
 
@@ -151,32 +150,112 @@ class Chat(ValidateMixin, RequestHandler):
 
             with SessionScope(self.session) as session:
 
-                foreign_model = self.model.participants.property.mapper.class_
-
-                user = session.query(foreign_model).get(
+                user = session.query(Client).get(
                     self.request.data.get('user_id')
                 )
 
-                contact = session.query(foreign_model).get(
+                contact = session.query(Contact).get(
                     self.request.data.get('contact_id')
-                )
+                ).user
 
-                chat = set(user.chats) & set(contact.user.chats)
+                chat = set(user.chats) & set(contact.chats)
 
                 if not chat:
-                    chat = self.model()
+                    chat = Chat()
                     session.add(chat)
                     session.commit()
-
                     chat.participants.extend([user, contact])
                     session.add(chat)
                     session.commit()
+                else:
+                    chat = chat.pop()
+
+                response = Response(
+                    self.request,
+                    data={
+                        'code': 200,
+                        'chat_id': chat.id,
+                        'contact_user_id': contact.id,
+                        'contact_username': contact.username,
+                        'lenght': 0
+                    }
+                )
+
+                if chat.messages:
+
+                    messages = [
+                        (message.sender_id, message.text) for
+                        message in chat.messages
+                    ]
+
+                    response.data.update(
+                        {'messages': messages, 'lenght': len(messages)}
+                    )
+
+                return response
+
+
+class AddMessage(ValidateMixin, RequestHandler):
+
+    def process(self):
+
+        if self.validate_request():
+
+            with SessionScope(Session) as session:
+                message = Message(
+                    sender_id=self.request.data.get('user_id'),
+                    receiver_id=self.request.data.get('contact_user_id'),
+                    chat_id=self.request.data.get('chat_id'),
+                    text=self.request.data.get('message')
+                )
+
+                session.add(message)
+                session.commit()
 
                 return Response(
                     self.request,
                     data={
                         'code': 200,
-                        'chat_id': chat.id,
-                        'messages': chat.messages
+                        'info': 'Message has been added to database',
+                        'chat_id': message.chat_id,
                     }
                 )
+
+
+class NewMessageListener(ValidateMixin, RequestHandler):
+
+    def process(self):
+
+        if self.validate_request():
+
+            with SessionScope(Session) as session:
+                chat = session.query(Chat).get(
+                    self.request.data.get('chat_id')
+                )
+                lenght = self.request.data.get('lenght')
+
+                if len(chat.messages) > lenght:
+
+                    messages = [
+                        (message.sender_id, message.text) for
+                        message in chat.messages[lenght:]
+                    ]
+
+                    return Response(
+                        self.request,
+                        data={
+                            'code': 200,
+                            'info': 'New messages has been added to database',
+                            'chat_id': chat.id,
+                            'messages': messages,
+                            'lenght': len(chat.messages)
+                        }
+                    )
+                else:
+                    return Response(
+                        self.request,
+                        data={
+                            'code': 205,
+                            'info': 'No new messages',
+                        }
+                    )

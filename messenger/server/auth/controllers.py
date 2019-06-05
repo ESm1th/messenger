@@ -91,6 +91,7 @@ class Login(AuthBase):
                             'code': 200,
                             'info': 'Client logged in',
                             'username': user.username,
+                            'user_id': user.id,
                             'contacts': contacts
                         }
                     )

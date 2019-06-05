@@ -106,7 +106,7 @@ class LoginListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-        print('Login kwargs: ', kwargs)
+
         if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs)
             self.employer.close_window.emit()
@@ -125,3 +125,34 @@ class ContactListener(Listener):
 
             elif kwargs.get('action') == 'delete_contact':
                 self.employer.update_model_delete.emit(kwargs.get('contact'))
+
+
+class ChatListener(Listener):
+
+    event = 'response'
+
+    def refresh(self, *args, **kwargs) -> None:
+
+        if kwargs.get('code') == 200:
+
+            if kwargs.get('action') == 'get_chat':
+                self.employer.open_chat.emit(kwargs)
+
+
+class NewMessageListener(Listener):
+
+    event = 'response'
+
+    def refresh(self, *args, **kwargs) -> None:
+
+        if kwargs.get('code') == 200:
+
+            if kwargs.get('action') == 'message_listener':
+
+                if self.employer.active_chat == kwargs.get('chat_id'):
+                    self.employer.messages_lenght = kwargs.get('lenght')
+
+                    if kwargs.get('messages'):
+                        self.employer.append_messages_to_textbox.emit(
+                            kwargs.get('messages')
+                        )
