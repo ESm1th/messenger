@@ -45,7 +45,8 @@ def chat_valid_request():
         time=datetime.now().timestamp(),
         data={
             'username': 'test_1',
-            'contact': 'test_2'
+            'user_id': 1,
+            'contact_id': 2
         }
     )
 
@@ -109,10 +110,9 @@ def test_get_contacts_if_contacts_not_exists(
 
 def test_chat(
     make_session,
-    test_user,
     fill_db,
     chat_valid_request
 ):
     response = Chat(chat_valid_request, make_session).process()
-
+    print(response)
     assert response.data.get('code') == 200

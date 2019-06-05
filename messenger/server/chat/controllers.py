@@ -151,35 +151,32 @@ class Chat(ValidateMixin, RequestHandler):
 
             with SessionScope(self.session) as session:
 
-                user_id = self.request.data.get('username')
-                contact_name = self.request.data.get('contact')
                 foreign_model = self.model.participants.property.mapper.class_
 
-                participants = session.query(foreign_model).filter(
-                    foreign_model.username.in_([user_name, contact_name])
+                user = session.query(foreign_model).get(
+                    self.request.data.get('user_id')
                 )
 
-                if participants.count() == 2:
-                    chat = session.query(self.model).filter(
-                        and_(self.model.participants.contains())
-                    ).one_or_none()
+                contact = session.query(foreign_model).get(
+                    self.request.data.get('contact_id')
+                )
 
-                    if not chat:
-                        chat = self.model()
-                        session.add(chat)
-                        session.commit()
-                        session.refresh(chat)
+                chat = set(user.chats) & set(contact.user.chats)
 
-                        chat.participants.extend(participants)
-                        session.add(chat)
-                        session.commit()
-                        session.refresh(chat)
+                if not chat:
+                    chat = self.model()
+                    session.add(chat)
+                    session.commit()
 
-                    return Response(
-                        self.request,
-                        data={
-                            'code': 200,
-                            'chat_id': chat.id,
-                            'messages': chat.messages
-                        }
-                    )
+                    chat.participants.extend([user, contact])
+                    session.add(chat)
+                    session.commit()
+
+                return Response(
+                    self.request,
+                    data={
+                        'code': 200,
+                        'chat_id': chat.id,
+                        'messages': chat.messages
+                    }
+                )
