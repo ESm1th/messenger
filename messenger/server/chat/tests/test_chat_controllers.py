@@ -9,7 +9,10 @@ from db import (
     Base,
     SessionScope
 )
-from chat.controllers import Contacts
+from chat.controllers import (
+    Contacts,
+    Chat
+)
 from core import Request
 
 
@@ -25,11 +28,24 @@ def teardown_function(function):
 
 
 @pytest.fixture(scope='function')
-def valid_request():
-    return Request(data={
-        'action': 'get_contacts',
-        'time': datetime.now().timestamp(),
-        'username': 'test_1',
+def get_contacts_valid_request():
+    return Request(
+        action='get_contacts',
+        time=datetime.now().timestamp(),
+        data={
+            'username': 'test_1'
+        }
+    )
+
+
+@pytest.fixture(scope='function')
+def chat_valid_request():
+    return Request(
+        action='chat',
+        time=datetime.now().timestamp(),
+        data={
+            'username': 'test_1',
+            'contact': 'test_2'
         }
     )
 
@@ -68,24 +84,35 @@ def fill_db(make_session):
 
 
 def test_get_contacts_if_contacts_exists(
-    valid_request,
+    get_contacts_valid_request,
     make_session,
     fill_db,
     test_user
 ):
-    response = Contacts(valid_request, make_session).process()
+    response = Contacts(get_contacts_valid_request, make_session).process()
 
     assert response.data.get('code') == 202
     assert test_user not in response.data.get('info')
 
 
 def test_get_contacts_if_contacts_not_exists(
-    valid_request,
+    get_contacts_valid_request,
     make_session,
     test_user
 ):
-    valid_request.data.update({'username': 'test_user'})
-    response = Contacts(valid_request, make_session).process()
+    get_contacts_valid_request.data.update({'username': 'test_user'})
+    response = Contacts(get_contacts_valid_request, make_session).process()
 
     assert response.data.get('code') == 202
     assert response.data.get('info') == 'Your contacts list is empty' 
+
+
+def test_chat(
+    make_session,
+    test_user,
+    fill_db,
+    chat_valid_request
+):
+    response = Chat(chat_valid_request, make_session).process()
+
+    assert response.data.get('code') == 200

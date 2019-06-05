@@ -10,6 +10,7 @@ from sqlalchemy.orm import (
 )
 from sqlalchemy import (
     Column,
+    Table,
     Integer,
     String,
     DateTime,
@@ -78,6 +79,14 @@ class CoreMixin:
             session.commit()
 
 
+chat_association_table = Table(
+    'chat_association',
+    Base.metadata,
+    Column('client_id', Integer, ForeignKey('clients.id')),
+    Column('chat_id', Integer, ForeignKey('chats.id'))
+)
+
+
 class Client(CoreMixin, Base):  # type: ignore
     """Represents 'clients' table in database"""
 
@@ -89,6 +98,11 @@ class Client(CoreMixin, Base):  # type: ignore
 
     # relationships
     history = relationship('ClientHistory', back_populates='client')
+    chats = relationship(
+        'Chat',
+        secondary=chat_association_table,
+        back_populates='participants'
+    )
 
     def __repr__(self) -> str:
         return '<{0}(first_name={1}, second_name={2}, username={3})>'.format(
@@ -143,14 +157,11 @@ class Contact(CoreMixin, Base):  # type: ignore
 class Chat(CoreMixin, Base):
     """Represents 'chats' table in database"""
 
-    participant_id = Column(Integer, ForeignKey('clients.id'))
-
-    # participant = relationship('Client')
     messages = relationship('Message', back_populates='chat')
-    participant = relationship(
+    participants = relationship(
         'Client',
-        backref='chats',
-        primaryjoin='Chat.participant_id==Client.id'
+        secondary=chat_association_table,
+        back_populates='chats',
     )
 
 

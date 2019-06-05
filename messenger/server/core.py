@@ -433,10 +433,10 @@ class Server(metaclass=ServerVerifier):
                     for sock in ready_to_write:
 
                         try:
-                            # if sock.getpeername() != client:
-                            self.send_response(
-                                sock, responses.get(client)
-                            )
+                            if sock.getpeername() == client:
+                                self.send_response(
+                                    sock, responses.get(client)
+                                )
                         except ConnectionResetError as error:
                             logger.error(error, exc_info=True)
                         except ConnectionAbortedError as error:

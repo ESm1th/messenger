@@ -5,6 +5,7 @@ from core import (
 )
 from db import (
     Client,
+    Chat,
     Contact,
     Session,
     SessionScope
@@ -28,7 +29,7 @@ class Contacts(ValidateMixin, RequestHandler):
 
     def process(self):
 
-        if self.validate_request(self.request.data):
+        if self.validate_request():
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
 
@@ -136,5 +137,49 @@ class DeleteContact(ValidateMixin, RequestHandler):
                         {
                             'code': 205,
                             'info': 'Contact does not exist in database'
+                        }
+                    )
+
+
+class Chat(ValidateMixin, RequestHandler):
+
+    model = Chat
+
+    def process(self):
+
+        if self.validate_request():
+
+            with SessionScope(self.session) as session:
+
+                user_id = self.request.data.get('username')
+                contact_name = self.request.data.get('contact')
+                foreign_model = self.model.participants.property.mapper.class_
+
+                participants = session.query(foreign_model).filter(
+                    foreign_model.username.in_([user_name, contact_name])
+                )
+
+                if participants.count() == 2:
+                    chat = session.query(self.model).filter(
+                        and_(self.model.participants.contains())
+                    ).one_or_none()
+
+                    if not chat:
+                        chat = self.model()
+                        session.add(chat)
+                        session.commit()
+                        session.refresh(chat)
+
+                        chat.participants.extend(participants)
+                        session.add(chat)
+                        session.commit()
+                        session.refresh(chat)
+
+                    return Response(
+                        self.request,
+                        data={
+                            'code': 200,
+                            'chat_id': chat.id,
+                            'messages': chat.messages
                         }
                     )
