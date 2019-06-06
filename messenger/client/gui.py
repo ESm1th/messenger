@@ -705,7 +705,7 @@ class ChatWindow(CommonMixin, QDialog):
                 self.parent.client.settings.encoding_name
             )
             self.parent.client.send_request(raw_data)
-            time.sleep(0.1)
+            time.sleep(1)
 
 
 class ClientGui(CenterMixin, QWidget):
