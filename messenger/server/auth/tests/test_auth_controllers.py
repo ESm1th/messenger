@@ -58,7 +58,7 @@ def test_register_user_exists(
     valid_request,
     make_user_session,
     make_session
-):  
+):
     print(valid_request.data)
     response = Register(valid_request, make_session).process()
     assert response.data.get('code') == 205
@@ -81,7 +81,7 @@ def test_login_wrong_password(
     request = valid_request
     request.data.update(
         {
-            'username': 'test_user', 
+            'username': 'test_user',
             'password': 'wrong_password'
         }
     )
@@ -92,7 +92,9 @@ def test_login_wrong_password(
 
 
 def test_login_username_not_exists(make_user_session, make_session):
-    request = Request(data={'username': 'not_exists_user', 'password': 'qwerty'})
+    request = Request(
+        data={'username': 'not_exists_user', 'password': 'qwerty'}
+    )
     response = Login(request, make_session).process()
 
     assert response.data.get('code') == 205

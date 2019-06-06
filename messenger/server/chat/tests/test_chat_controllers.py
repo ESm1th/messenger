@@ -7,7 +7,6 @@ from db import (
     Client,
     Contact,
     Base,
-    SessionScope
 )
 from chat.controllers import (
     Contacts,
@@ -105,7 +104,7 @@ def test_get_contacts_if_contacts_not_exists(
     response = Contacts(get_contacts_valid_request, make_session).process()
 
     assert response.data.get('code') == 202
-    assert response.data.get('info') == 'Your contacts list is empty' 
+    assert response.data.get('info') == 'Your contacts list is empty'
 
 
 def test_chat(

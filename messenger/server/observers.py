@@ -75,7 +75,8 @@ class ServerStatusListener(Listener):
         Updates 'TitledLineEdit' widgets in 'settings_group' widget.
         Makes 'state' line edit widget 'read only' always.
         Other widgets change their behavior by servers 'state' attribute value.
-        If server 'state' is 'connected' - all other widgets become 'read only',
+        If server 'state' is 'connected' - all other widgets
+        become 'read only'.
         If server 'state' is 'disconnected' - all other
         widgets become 'writable'.
         """
