@@ -1,3 +1,6 @@
+from contextlib import AbstractContextManager
+from typing import List, Union
+
 from sqlalchemy.ext.declarative import (
     declarative_base,
     declared_attr
@@ -19,8 +22,6 @@ from sqlalchemy import (
     create_engine,
     func
 )
-from contextlib import AbstractContextManager
-from typing import List, Union
 
 from settings import BASE_DIR
 

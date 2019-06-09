@@ -1,5 +1,6 @@
 import sys
 from typing import Dict
+
 from PyQt5.QtCore import (
     Qt,
     QThread,
@@ -18,6 +19,7 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLabel
 )
+
 from core import (
     Server,
 )

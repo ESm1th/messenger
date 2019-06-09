@@ -1,10 +1,11 @@
-import argparse
-import yaml
-import faulthandler
 import os
 import sys
 import logging
 import logging.config
+import argparse
+import faulthandler
+
+import yaml
 from PyQt5.QtWidgets import QApplication
 
 from gui import ServerGui

@@ -1,21 +1,17 @@
-# import socket
 import argparse
+import faulthandler
 import sys
 import os
-# import json
 import logging
 import logging.config
+
 import yaml
 from PyQt5.QtWidgets import QApplication
-import settings
 
-# from protocol import make_request
-from core import (
-    Client
-)
+import settings
 from gui import ClientGui
 
-import faulthandler
+
 faulthandler.enable()
 
 
@@ -38,7 +34,7 @@ parser.add_argument(
 )
 parser.add_argument(
     '-m', '--mode', type=str,
-    help='Type of client mode: read - receive responses, write - send requests' 
+    help='Type of client mode: read - receive responses, write - send requests'
 )
 args = parser.parse_args()
 

@@ -1,0 +1,150 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>auth.controllers &#8212; GB-Messenger Server 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-auth.controllers">
+<span id="auth-controllers"></span><span id="server-auth-controllers-label"></span><h1>auth.controllers<a class="headerlink" href="#module-auth.controllers" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="auth.controllers.AuthBase">
+<em class="property">class </em><code class="sig-prename descclassname">auth.controllers.</code><code class="sig-name descname">AuthBase</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.AuthBase" title="Permalink to this definition">¶</a></dt>
+<dd><p>Base class for [auth] app controllers</p>
+<dl class="attribute">
+<dt id="auth.controllers.AuthBase.model">
+<code class="sig-name descname">model</code><a class="headerlink" href="#auth.controllers.AuthBase.model" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="../main/db.html#db.Client" title="db.Client"><code class="xref py py-class docutils literal notranslate"><span class="pre">db.Client</span></code></a></p>
+</dd></dl>
+
+<dl class="method">
+<dt id="auth.controllers.AuthBase.validate_request">
+<code class="sig-name descname">validate_request</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.AuthBase.validate_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Checks if username and password are not None
+and if they are not empty string</p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="auth.controllers.Login">
+<em class="property">class </em><code class="sig-prename descclassname">auth.controllers.</code><code class="sig-name descname">Login</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.Login" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for loggining user</p>
+</dd></dl>
+
+<dl class="class">
+<dt id="auth.controllers.Register">
+<em class="property">class </em><code class="sig-prename descclassname">auth.controllers.</code><code class="sig-name descname">Register</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.Register" title="Permalink to this definition">¶</a></dt>
+<dd><p>Class for register new user</p>
+<dl class="method">
+<dt id="auth.controllers.Register.process">
+<code class="sig-name descname">process</code><span class="sig-paren">(</span><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.Register.process" title="Permalink to this definition">¶</a></dt>
+<dd><p>Creates new user if requests data is valid and
+user does not exist in database</p>
+</dd></dl>
+
+<dl class="method">
+<dt id="auth.controllers.Register.validate_request">
+<code class="sig-name descname">validate_request</code><span class="sig-paren">(</span><em class="sig-param">data</em><span class="sig-paren">)</span><a class="headerlink" href="#auth.controllers.Register.validate_request" title="Permalink to this definition">¶</a></dt>
+<dd><p>Adds validation of passwords equalent</p>
+</dd></dl>
+
+</dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">GB-Messenger Server</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Server applications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../main/main.html">Main app</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../chat/chat.html">Chat app</a></li>
+<li class="toctree-l1"><a class="reference internal" href="auth.html">Auth app</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Evgeniy Kuznetsov.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/source/auth/controllers.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>

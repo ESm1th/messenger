@@ -31,7 +31,7 @@ from PyQt5.QtCore import (
 )
 
 from core import Client
-from requests import (
+from _requests import (
     RegistrationRequestCreator,
     LoginRequestCreator,
     ChatRequestCreator,
