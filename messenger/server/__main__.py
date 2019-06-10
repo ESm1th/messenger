@@ -5,9 +5,9 @@ import logging.config
 import argparse
 import faulthandler
 
-import yaml
 from PyQt5.QtWidgets import QApplication
 
+import settings
 from gui import ServerGui
 
 
@@ -27,19 +27,35 @@ parser.add_argument(
 args = parser.parse_args()
 
 
-# load logging config from yaml file and get logger
-path = os.path.join(os.path.dirname(__file__), 'conflog.yaml')
+# logger configuration
+if 'log' not in os.listdir(settings.BASE_DIR):
+    os.mkdir(
+        ''.join([settings.BASE_DIR, '/log/'])
+    )
 
-with open(path, 'r') as file:
-    config = yaml.load(file.read(), Loader=yaml.Loader)
-    logging.config.dictConfig(config)
+formatter = logging.Formatter(
+    fmt=r'%(asctime)s - %(levelname)s - %(message)s',
+    datefmt=r'%Y-%m-%d - %H:%M:%S'
+)
+
+handler = logging.handlers.TimedRotatingFileHandler(
+    filename=''.join([settings.BASE_DIR, '/log/server_log.log']),
+    when='D',
+    interval=1,
+)
+
+handler.setLevel(logging.DEBUG)
+handler.setFormatter(formatter)
 
 logger = logging.getLogger('server_logger')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 
 try:
     app = QApplication([])
     widget = ServerGui()
     sys.exit(app.exec_())
+    logger.info('Works fine')
 except KeyboardInterrupt:
     logger.info('Server closed')
