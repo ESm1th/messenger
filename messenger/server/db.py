@@ -96,6 +96,7 @@ class Client(CoreMixin, Base):  # type: ignore
     second_name = Column(String)
     bio = Column(Text)
     password = Column(String, nullable=False)
+    is_authenticate = False
 
     # relationships
     history = relationship('ClientHistory', back_populates='client')
@@ -132,7 +133,7 @@ class ClientHistory(CoreMixin, Base):  # type: ignore
     client = relationship('Client', back_populates='history')
 
     def __repr__(self) -> str:
-        return '<{0}(address={1}, client_is={2})>'.format(
+        return '<{0}(address={1}, client_id={2})>'.format(
             self.__class__.__name__,
             self.address,
             self.client_id

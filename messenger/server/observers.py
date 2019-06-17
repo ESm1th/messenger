@@ -114,6 +114,22 @@ class LogListener(Listener):
             self.employer.append_log.emit(log)
 
 
+class RequestListener(Listener):
+
+    def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
+        request = kwargs.get('request')
+        if request:
+            self.employer.write_request.emit(request)
+
+
+class ResponseListener(Listener):
+
+    def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
+        response = kwargs.get('response')
+        if response:
+            self.employer.write_response.emit(response)    
+
+
 class ClientListener(Listener):
 
     def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
