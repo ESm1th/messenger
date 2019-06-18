@@ -1,5 +1,7 @@
 import sys
+import os
 from typing import Dict
+
 from PyQt5.QtCore import (
     Qt,
     QThread,
@@ -18,15 +20,19 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLabel
 )
+from PyQt5.QtGui import QPixmap
+
 from core import (
     Server,
 )
 from observers import (
     ServerStatusListener,
     LogListener,
-    ClientListener
+    ClientListener,
+    RequestListener,
+    ResponseListener
 )
-
+import settings
 
 class ServerThread(QThread):
 
@@ -93,6 +99,8 @@ class ServerGui(QWidget):
     server = Server()
     append_log = pyqtSignal(str)
     append_client = pyqtSignal(str)
+    write_request = pyqtSignal(str)
+    write_response = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
@@ -100,7 +108,15 @@ class ServerGui(QWidget):
 
         self.append_log.connect(self.log_text_edit.append)
         self.append_client.connect(self.clients_text_edit.append)
+        self.write_request.connect(self.request_json_text.setText)
+        self.write_response.connect(self.response_json_text.setText)
 
+        self.request_listener = RequestListener(
+            self, self.server.notifier, 'request'
+        )
+        self.response_listener = ResponseListener(
+            self, self.server.notifier, 'response'
+        )
         self.log_listener = LogListener(self, self.server.notifier, 'log')
         self.client_listener = ClientListener(
             self, self.server.notifier, 'client'
@@ -138,10 +154,23 @@ class ServerGui(QWidget):
         self.stop_server_btn.setDisabled(True)
         self.stop_server_btn.clicked.connect(self.stop_server)
 
+        logo = QLabel('Image')
+        logo.setFixedSize(200, 200)
+        image = QPixmap(os.path.join(settings.BASE_DIR, 'media/Chat.png'))
+        logo.setPixmap(image)
+        logo.setScaledContents(True)
+        logo.setContentsMargins(10, 10, 10, 10)
+
+        logo_layout = QHBoxLayout()
+        logo_layout.addWidget(logo)
+        logo_layout.setAlignment(Qt.AlignCenter)
+
         v_settings_layout = QVBoxLayout()
         v_settings_layout.addWidget(self.settings_group)
         v_settings_layout.addWidget(self.run_server_btn)
         v_settings_layout.addWidget(self.stop_server_btn)
+        v_settings_layout.addLayout(logo_layout)
+        v_settings_layout.setAlignment(Qt.AlignTop)
 
         self.log_text_edit = QTextEdit()
         self.log_text_edit.setReadOnly(True)
@@ -149,8 +178,8 @@ class ServerGui(QWidget):
         v_log_layout = QVBoxLayout()
         v_log_layout.addWidget(self.log_text_edit)
 
-        self.log_group = QGroupBox('Log')
-        self.log_group.setLayout(v_log_layout)
+        log_group = QGroupBox('Log')
+        log_group.setLayout(v_log_layout)
 
         self.clients_text_edit = QTextEdit()
         self.clients_text_edit.setReadOnly(True)
@@ -158,17 +187,46 @@ class ServerGui(QWidget):
         v_clients_layout = QVBoxLayout()
         v_clients_layout.addWidget(self.clients_text_edit)
 
-        self.clients_group = QGroupBox('Clients')
-        self.clients_group.setLayout(v_clients_layout)
+        clients_group = QGroupBox('Clients')
+        clients_group.setLayout(v_clients_layout)
 
+        log_and_clients_layout = QHBoxLayout()
+        log_and_clients_layout.addWidget(log_group)
+        log_and_clients_layout.addWidget(clients_group)
+
+        self.request_json_text = QTextEdit()
+        self.request_json_text.setReadOnly(True)
+
+        v_request_layout = QVBoxLayout()
+        v_request_layout.addWidget(self.request_json_text)
+
+        request_group = QGroupBox('Request json')
+        request_group.setLayout(v_request_layout)
+
+        self.response_json_text = QTextEdit()
+        self.response_json_text.setReadOnly(True)
+
+        response_layout = QVBoxLayout()
+        response_layout.addWidget(self.response_json_text)
+
+        response_group = QGroupBox('Response json')
+        response_group.setLayout(response_layout)
+
+        request_and_response_layout = QHBoxLayout()
+        request_and_response_layout.addWidget(request_group)
+        request_and_response_layout.addWidget(response_group)
+
+        v_layout = QVBoxLayout()
+        v_layout.addLayout(log_and_clients_layout)
+        v_layout.addLayout(request_and_response_layout)
+        
         h_layout = QHBoxLayout()
         h_layout.addLayout(v_settings_layout)
-        h_layout.addWidget(self.log_group)
-        h_layout.addWidget(self.clients_group)
+        h_layout.addLayout(v_layout)
 
         self.setWindowTitle('Admin panel')
         self.setLayout(h_layout)
-        self.resize(900, 300)
+        self.resize(900, 500)
         self.setFixedSize(self.size())
         self.to_center()
         self.show()

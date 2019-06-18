@@ -1,4 +1,3 @@
-# from __future__ import annotations
 import socket
 import json
 import re
@@ -327,18 +326,32 @@ class Server(metaclass=ServerVerifier):
 
         try:
             raw_request = client_socket.recv(self.settings.buffer_size)
-            logger.info(
-                'Request: {0}'.format(
-                    raw_request.decode(self.settings.encoding_name)
-                )
+            request_as_string = raw_request.decode(self.settings.encoding_name)
+
+            logger.info('Request: {0}'.format(request_as_string))
+
+            # self.notifier.notify('log', info=request_as_string)
+            self.notifier.notify(
+                'request',
+                request=json.dumps(json.loads(request_as_string), indent=4)
             )
+            print(client_socket.getpeername())
+
             if raw_request:
                 request_attributes = json.loads(
                     raw_request.decode(self.settings.encoding_name)
                 )
+                print(request_attributes)
+                if request_attributes.get('action') == 'login':
+                    print(request_attributes)
+                    request_attributes['data'].update(
+                        {'address': client_socket.getpeername()}
+                    )
 
                 request = Request(**request_attributes)
+                print(request.data)
                 return request
+
             else:
                 logger.info(
                     'Client {} disconnected'.format(
@@ -357,6 +370,12 @@ class Server(metaclass=ServerVerifier):
 
         logger.info(f'Response {response} sent.')
         logger.info(response.prepare())
+
+        self.notifier.notify(
+            'response',
+            response=json.dumps(response.data, indent=4)
+        )
+
         return client_socket.send(
             json.dumps(response.prepare()).encode(self.settings.encoding_name)
         )
@@ -414,7 +433,7 @@ class Server(metaclass=ServerVerifier):
                 self.connections, self.connections, self.connections, 0)
 
             for sock in ready_to_read:
-
+                
                 if sock is server_socket:
                     client_socket = self.accept_connection()
                     self.connections.append(client_socket)

@@ -1,4 +1,5 @@
 import argparse
+import faulthandler
 import sys
 import os
 import logging
@@ -49,14 +50,27 @@ elif args.port and not args.address:
     port = args.port
 
 
-# load logging config from yaml file and get logger
-path = os.path.join(settings.BASE_DIR, 'conflog.yaml')
+# logger configuration
+if 'log' not in os.listdir(settings.BASE_DIR):
+    os.mkdir(
+        ''.join([settings.BASE_DIR, '/log/'])
+    )
 
-with open(path, 'r') as file:
-    config = yaml.load(file.read(), Loader=yaml.Loader)
-    logging.config.dictConfig(config)
+formatter = logging.Formatter(
+    fmt=r'%(asctime)s - %(levelname)s - %(message)s',
+    datefmt=r'%Y-%m-%d - %H:%M:%S'
+)
+
+handler = logging.FileHandler(
+    filename=''.join([settings.BASE_DIR, '/log/client_log.log']),
+)
+
+handler.setLevel(logging.DEBUG)
+handler.setFormatter(formatter)
 
 logger = logging.getLogger('client_logger')
+logger.setLevel(logging.DEBUG)
+logger.addHandler(handler)
 
 
 try:

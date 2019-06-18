@@ -1,4 +1,5 @@
 import logging
+
 from core import (
     RequestHandler,
     Response,
@@ -6,6 +7,8 @@ from core import (
 )
 from db import (
     Client,
+    ClientHistory,
+    SessionScope
 )
 
 
@@ -74,7 +77,7 @@ class Login(AuthBase):
 
     def process(self):
         if self.validate_request(self.request.data):
-
+            print(self.request.data.get('address'))
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
 
@@ -82,17 +85,36 @@ class Login(AuthBase):
                 password = self.request.data.get('password')
 
                 if password == user.password:
+                    
+                    with SessionScope(self.session) as session:
+                        session_user = session.query(self.model).get(user.id)
+                        session_user.is_authenticate = True
+                        session_user.history.append(
+                            ClientHistory(
+                                address=':'.join(
+                                    (
+                                        str(element) for element in
+                                        self.request.data.get('address')
+                                    )
+                                ),
+                                client_id=session_user.id
+                            )
+                        )
+                        session.add(session_user)
+                        session.commit()
+
                     contacts = {
                         contact.user.username: contact.id
                         for contact in user.contacts
                     }
+
                     return Response(
                         self.request, {
                             'code': 200,
                             'info': 'Client logged in',
                             'username': user.username,
                             'user_id': user.id,
-                            'contacts': contacts
+                            'contacts': contacts,
                         }
                     )
                 else:

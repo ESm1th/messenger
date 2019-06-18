@@ -2,6 +2,7 @@ from abc import ABC, abstractmethod
 from typing import Dict
 from logging import getLogger
 
+
 logger = getLogger('server_logger')
 
 
@@ -77,6 +78,8 @@ class ServerStatusListener(Listener):
         Other widgets change their behavior by servers 'state' attribute value.
         If server 'state' is 'connected' - all other widgets
         become 'read only'.
+        If server 'state' is 'connected' - all other
+        widgets become 'read only'.
         If server 'state' is 'disconnected' - all other
         widgets become 'writable'.
         """
@@ -111,6 +114,22 @@ class LogListener(Listener):
         log = kwargs.get('info')
         if log:
             self.employer.append_log.emit(log)
+
+
+class RequestListener(Listener):
+
+    def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
+        request = kwargs.get('request')
+        if request:
+            self.employer.write_request.emit(request)
+
+
+class ResponseListener(Listener):
+
+    def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
+        response = kwargs.get('response')
+        if response:
+            self.employer.write_response.emit(response)    
 
 
 class ClientListener(Listener):

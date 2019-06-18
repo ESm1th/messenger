@@ -1,0 +1,154 @@
+
+<!DOCTYPE html>
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta charset="utf-8" />
+    <title>chat.controllers &#8212; GB-Messenger Server 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/alabaster.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <script type="text/javascript" src="../../_static/language_data.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" />
+   
+  <link rel="stylesheet" href="../../_static/custom.css" type="text/css" />
+  
+  
+  <meta name="viewport" content="width=device-width, initial-scale=0.9, maximum-scale=0.9" />
+
+  </head><body>
+  
+
+    <div class="document">
+      <div class="documentwrapper">
+        <div class="bodywrapper">
+          
+
+          <div class="body" role="main">
+            
+  <div class="section" id="module-chat.controllers">
+<span id="chat-controllers"></span><span id="server-chat-controllers-label"></span><h1>chat.controllers<a class="headerlink" href="#module-chat.controllers" title="Permalink to this headline">¶</a></h1>
+<dl class="class">
+<dt id="chat.controllers.AddContact">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">AddContact</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.AddContact" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="chat.controllers.AddContact.model">
+<code class="sig-name descname">model</code><a class="headerlink" href="#chat.controllers.AddContact.model" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="../main/db.html#db.Client" title="db.Client"><code class="xref py py-class docutils literal notranslate"><span class="pre">db.Client</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="chat.controllers.AddMessage">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">AddMessage</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.AddMessage" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="chat.controllers.Contacts">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">Contacts</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.Contacts" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="chat.controllers.Contacts.model">
+<code class="sig-name descname">model</code><a class="headerlink" href="#chat.controllers.Contacts.model" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="../main/db.html#db.Client" title="db.Client"><code class="xref py py-class docutils literal notranslate"><span class="pre">db.Client</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="chat.controllers.DeleteContact">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">DeleteContact</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.DeleteContact" title="Permalink to this definition">¶</a></dt>
+<dd><dl class="attribute">
+<dt id="chat.controllers.DeleteContact.model">
+<code class="sig-name descname">model</code><a class="headerlink" href="#chat.controllers.DeleteContact.model" title="Permalink to this definition">¶</a></dt>
+<dd><p>alias of <a class="reference internal" href="../main/db.html#db.Contact" title="db.Contact"><code class="xref py py-class docutils literal notranslate"><span class="pre">db.Contact</span></code></a></p>
+</dd></dl>
+
+</dd></dl>
+
+<dl class="class">
+<dt id="chat.controllers.GetChat">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">GetChat</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.GetChat" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+<dl class="class">
+<dt id="chat.controllers.NewMessageListener">
+<em class="property">class </em><code class="sig-prename descclassname">chat.controllers.</code><code class="sig-name descname">NewMessageListener</code><span class="sig-paren">(</span><em class="sig-param">request: core.Request</em>, <em class="sig-param">session: sessionmaker(class_='Session'</em>, <em class="sig-param">bind=Engine(sqlite:////home/evgeny/Projects/messenger/messenger/server/db.sqlite)</em>, <em class="sig-param">autoflush=True</em>, <em class="sig-param">autocommit=False</em>, <em class="sig-param">expire_on_commit=True)</em><span class="sig-paren">)</span><a class="headerlink" href="#chat.controllers.NewMessageListener" title="Permalink to this definition">¶</a></dt>
+<dd></dd></dl>
+
+</div>
+
+
+          </div>
+          
+        </div>
+      </div>
+      <div class="sphinxsidebar" role="navigation" aria-label="main navigation">
+        <div class="sphinxsidebarwrapper">
+<h1 class="logo"><a href="../../index.html">GB-Messenger Server</a></h1>
+
+
+
+
+
+
+
+
+<h3>Navigation</h3>
+<p class="caption"><span class="caption-text">Server applications</span></p>
+<ul>
+<li class="toctree-l1"><a class="reference internal" href="../main/main.html">Main app</a></li>
+<li class="toctree-l1"><a class="reference internal" href="chat.html">Chat app</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../auth/auth.html">Auth app</a></li>
+</ul>
+
+<div class="relations">
+<h3>Related Topics</h3>
+<ul>
+  <li><a href="../../index.html">Documentation overview</a><ul>
+  </ul></li>
+</ul>
+</div>
+<div id="searchbox" style="display: none" role="search">
+  <h3 id="searchlabel">Quick search</h3>
+    <div class="searchformwrapper">
+    <form class="search" action="../../search.html" method="get">
+      <input type="text" name="q" aria-labelledby="searchlabel" />
+      <input type="submit" value="Go" />
+    </form>
+    </div>
+</div>
+<script type="text/javascript">$('#searchbox').show(0);</script>
+
+
+
+
+
+
+
+
+        </div>
+      </div>
+      <div class="clearer"></div>
+    </div>
+    <div class="footer">
+      &copy;2019, Evgeniy Kuznetsov.
+      
+      |
+      Powered by <a href="http://sphinx-doc.org/">Sphinx 2.1.0</a>
+      &amp; <a href="https://github.com/bitprophet/alabaster">Alabaster 0.7.12</a>
+      
+      |
+      <a href="../../_sources/source/chat/controllers.rst.txt"
+          rel="nofollow">Page source</a>
+    </div>
+
+    
+
+    
+  </body>
+</html>
