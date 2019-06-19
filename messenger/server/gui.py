@@ -5,6 +5,7 @@ from typing import Dict
 from PyQt5.QtCore import (
     Qt,
     QThread,
+    QStringListModel,
     pyqtSignal
 )
 from PyQt5.QtWidgets import (
@@ -13,6 +14,7 @@ from PyQt5.QtWidgets import (
     QDesktopWidget,
     QTextEdit,
     QGroupBox,
+    QColumnView,
     QLineEdit,
     QPushButton,
     QVBoxLayout,
@@ -20,7 +22,9 @@ from PyQt5.QtWidgets import (
     QFormLayout,
     QLabel
 )
-from PyQt5.QtGui import QPixmap
+from PyQt5.QtGui import (
+    QPixmap,
+)
 
 from core import (
     Server,
@@ -33,6 +37,7 @@ from observers import (
     ResponseListener
 )
 import settings
+
 
 class ServerThread(QThread):
 
@@ -101,15 +106,22 @@ class ServerGui(QWidget):
     append_client = pyqtSignal(str)
     write_request = pyqtSignal(str)
     write_response = pyqtSignal(str)
+    update_model_add = pyqtSignal(dict)
+    update_model_delete = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
+        self.clients = {}
+        self.model = QStringListModel(self.clients.keys())
+        self.clients_column_view.setModel(self.model)
+
         self.append_log.connect(self.log_text_edit.append)
-        self.append_client.connect(self.clients_text_edit.append)
         self.write_request.connect(self.request_json_text.setText)
         self.write_response.connect(self.response_json_text.setText)
+        self.update_model_add.connect(self.update_clients_list_add)
+        self.update_model_delete.connect(self.update_clients_list_delete)
 
         self.request_listener = RequestListener(
             self, self.server.notifier, 'request'
@@ -181,11 +193,13 @@ class ServerGui(QWidget):
         log_group = QGroupBox('Log')
         log_group.setLayout(v_log_layout)
 
-        self.clients_text_edit = QTextEdit()
-        self.clients_text_edit.setReadOnly(True)
+        self.clients_column_view = QColumnView()
+        self.clients_column_view.setHorizontalScrollBarPolicy(
+            Qt.ScrollBarAlwaysOff
+        )
 
         v_clients_layout = QVBoxLayout()
-        v_clients_layout.addWidget(self.clients_text_edit)
+        v_clients_layout.addWidget(self.clients_column_view)
 
         clients_group = QGroupBox('Clients')
         clients_group.setLayout(v_clients_layout)
@@ -219,7 +233,7 @@ class ServerGui(QWidget):
         v_layout = QVBoxLayout()
         v_layout.addLayout(log_and_clients_layout)
         v_layout.addLayout(request_and_response_layout)
-        
+
         h_layout = QHBoxLayout()
         h_layout.addLayout(v_settings_layout)
         h_layout.addLayout(v_layout)
@@ -257,6 +271,16 @@ class ServerGui(QWidget):
 
         self.run_thread = ServerThread(self.server)
         self.run_thread.start()
+
+    def update_clients_list_add(self, client: Dict) -> None:
+        self.clients.update(client)
+        self.model.setStringList(self.clients.keys())
+        self.clients_column_view.repaint()
+
+    def update_clients_list_delete(self, client: str) -> None:
+        self.clients.pop(client)
+        self.model.setStringList(self.clients.keys())
+        self.clients_column_view.repaint()
 
     def stop_server(self):
         self.server.close()

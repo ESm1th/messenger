@@ -38,7 +38,7 @@ from _requests import (
     AddContactRequestCreator,
     DeleteContactRequestCreator,
     MessageRequestCreator,
-    MessageListenRequestCreator
+    LogoutRequestCreator
 )
 from observers import (
     StateListener,
@@ -472,7 +472,8 @@ class ChatWindow(CommonMixin, QDialog):
     request_creator = ChatRequestCreator()
     delete_creator = DeleteContactRequestCreator()
     message_creator = MessageRequestCreator()
-    message_listen_creator = MessageListenRequestCreator()
+    # message_listen_creator = MessageListenRequestCreator()
+    logout_creator = LogoutRequestCreator()
 
     update_model_add = pyqtSignal(dict)
     update_model_delete = pyqtSignal(str)
@@ -682,10 +683,10 @@ class ChatWindow(CommonMixin, QDialog):
         if messages:
             self.append_messages_to_textbox.emit(messages)
 
-        send_thread = threading.Thread(
-            target=self.listen_for_new_messages, daemon=True
-        )
-        send_thread.start()
+        # send_thread = threading.Thread(
+        #     target=self.listen_for_new_messages, daemon=True
+        # )
+        # send_thread.start()
 
     def listen_for_new_messages(self):
 
@@ -706,6 +707,20 @@ class ChatWindow(CommonMixin, QDialog):
             )
             self.parent.client.send_request(raw_data)
             time.sleep(1)
+
+    def closeEvent(self, event):
+
+        request = self.logout_creator.create_request(
+            {'username': self.username}
+        )
+
+        raw_data = request.prepare().encode(
+            self.parent.client.settings.encoding_name
+        )
+        self.parent.client.send_request(raw_data)
+
+        event.accept()
+        self.parent.show()
 
 
 class ClientGui(CenterMixin, QWidget):

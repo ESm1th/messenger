@@ -135,6 +135,12 @@ class ResponseListener(Listener):
 class ClientListener(Listener):
 
     def refresh(self, notifier: Notifier, *args, **kwargs) -> None:
-        client = kwargs.get('info')
-        if client:
-            self.employer.append_client.emit(client)
+
+        action = kwargs.get('action')
+        data = kwargs.get('data')
+
+        if data:
+            if action == 'add':
+                self.employer.update_model_add.emit(data)
+            elif action == 'delete':
+                self.employer.update_model_delete.emit(data)

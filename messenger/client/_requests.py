@@ -43,6 +43,12 @@ class LoginRequest(RequestInterface):
     action = 'login'
 
 
+class LogoutRequest(RequestInterface):
+    """Class represents request objects for logging out"""
+
+    action = 'logout'
+
+
 class ChatRequest(RequestInterface):
     """Class represents request objects for activating chat"""
 
@@ -130,9 +136,9 @@ class MessageRequestCreator(RequestCreatorInterface):
         return MessageRequest(data)
 
 
-class MessageListenRequestCreator(RequestCreatorInterface):
+class LogoutRequestCreator(RequestCreatorInterface):
 
-    def create_request(self, data: Dict) -> MessageListenRequest:
-        """Create MessageListenRequest object"""
+    def create_request(self, data: Dict) -> LogoutRequest:
+        """Create LogoutRequest object"""
 
-        return MessageListenRequest(data)
+        return LogoutRequest(data)

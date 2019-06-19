@@ -77,7 +77,6 @@ class Login(AuthBase):
 
     def process(self):
         if self.validate_request(self.request.data):
-            print(self.request.data.get('address'))
             username = self.request.data.get('username')
             user = self.model.get_client(self.session, username)
 
@@ -85,15 +84,17 @@ class Login(AuthBase):
                 password = self.request.data.get('password')
 
                 if password == user.password:
-                    user.set_auth_state(True)
-                    user.add_address(
-                        str(self.request.data.get('address'))
-                    )
 
                     contacts = {
                         contact.user.username: contact.id
                         for contact in user.contacts
                     }
+
+                    user.set_auth_state(self.session, True)
+                    user.add_address(
+                        self.session,
+                        str(self.request.data.get('address'))
+                    )
 
                     return Response(
                         self.request, {
@@ -116,3 +117,28 @@ class Login(AuthBase):
                 )
         else:
             return Response_400(self.request)
+
+
+class Logout(AuthBase):
+
+    def validate_request(self, data):
+        return bool(data.get('username'))
+
+    def process(self):
+
+        if self.validate_request(self.request.data):
+
+            username = self.request.data.get('username')
+            user = self.model.get_client(self.session, username)
+
+            if user:
+                user.set_auth_state(self.session, False)
+
+                return Response(
+                    self.request, {
+                        'code': 200,
+                        'info': 'Client logged out',
+                        'username': user.username,
+                        'user_id': user.id,
+                    }
+                )

@@ -116,4 +116,4 @@ def test_chat(
     response = GetChat(chat_valid_request, make_session).process()
 
     assert response.data.get('code') == 200
-    assert response.data.get('messages') == []
+    assert response.data.get('contact_username') == 'test_3'

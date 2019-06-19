@@ -313,7 +313,7 @@ class Server(metaclass=ServerVerifier):
 
         info = 'Client with address {} detected'.format(client_address)
         logger.info(info)
-        self.notifier.notify('client', info=info)
+        self.notifier.notify('log', info=info)
 
         return client_socket
 
@@ -330,26 +330,24 @@ class Server(metaclass=ServerVerifier):
 
             logger.info('Request: {0}'.format(request_as_string))
 
-            # self.notifier.notify('log', info=request_as_string)
-            self.notifier.notify(
-                'request',
-                request=json.dumps(json.loads(request_as_string), indent=4)
-            )
-            print(client_socket.getpeername())
-
             if raw_request:
+
+                self.notifier.notify(
+                    'request',
+                    request=json.dumps(json.loads(request_as_string), indent=4)
+                )
+
                 request_attributes = json.loads(
                     raw_request.decode(self.settings.encoding_name)
                 )
-                print(request_attributes)
+
                 if request_attributes.get('action') == 'login':
-                    print(request_attributes)
+
                     request_attributes['data'].update(
                         {'address': client_socket.getpeername()}
                     )
 
                 request = Request(**request_attributes)
-                print(request.data)
                 return request
 
             else:
@@ -407,7 +405,7 @@ class Server(metaclass=ServerVerifier):
     def close(self):
         if hasattr(self, 'socket'):
             self.state = 'Disconnected'
-            self.connections.remove(self.socket)
+            self.connections.pop(self.socket)
             self.socket.close()
 
             self.notifier.notify('state')
@@ -434,22 +432,51 @@ class Server(metaclass=ServerVerifier):
                 self.connections, self.connections, self.connections, 0)
 
             for sock in ready_to_read:
-                
+
                 if sock is server_socket:
                     client_socket = self.accept_connection()
-                    
+
                     self.connections.update(
-                        {client_socket: client_socket.getpeername()}
+                        {
+                            client_socket: {
+                                'address': client_socket.getpeername(),
+                            }
+                        }
                     )
 
                 else:
                     request = self.receive_request(sock)
 
                     if request:
+
                         response = self.process_request(request)
                         responses[sock.getpeername()] = response
+
+                        if response.data.get('action') == 'login':
+
+                            self.connections[sock].update({
+                                'username': response.data.get('username')
+                            })
+
+                            self.notifier.notify(
+                                'client',
+                                action='add',
+                                data={
+                                    self.connections.get(sock).get('username'):
+                                    sock.getpeername()
+                                }
+                            )
+
+                        elif response.data.get('action') == 'logout':
+
+                            self.notifier.notify(
+                                'client',
+                                action='delete',
+                                data=self.connections.get(sock).get('username')
+                            )
+
                     else:
-                        self.connections.remove(sock)
+                        self.connections.pop(sock)
 
             if responses:
 
