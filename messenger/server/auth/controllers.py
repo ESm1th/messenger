@@ -85,23 +85,10 @@ class Login(AuthBase):
                 password = self.request.data.get('password')
 
                 if password == user.password:
-                    
-                    with SessionScope(self.session) as session:
-                        session_user = session.query(self.model).get(user.id)
-                        session_user.is_authenticate = True
-                        session_user.history.append(
-                            ClientHistory(
-                                address=':'.join(
-                                    (
-                                        str(element) for element in
-                                        self.request.data.get('address')
-                                    )
-                                ),
-                                client_id=session_user.id
-                            )
-                        )
-                        session.add(session_user)
-                        session.commit()
+                    user.set_auth_state(True)
+                    user.add_address(
+                        str(self.request.data.get('address'))
+                    )
 
                     contacts = {
                         contact.user.username: contact.id

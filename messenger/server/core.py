@@ -422,13 +422,14 @@ class Server(metaclass=ServerVerifier):
         able to send data to them.
         """
 
-        self.connections = []
+        self.connections = {}
         responses = {}
 
         server_socket = self.make_socket()
-        self.connections.append(server_socket)
+        self.connections.update({server_socket: None})
 
         while self.state == 'Connected':
+
             ready_to_read, ready_to_write, _ = select(
                 self.connections, self.connections, self.connections, 0)
 
@@ -436,7 +437,11 @@ class Server(metaclass=ServerVerifier):
                 
                 if sock is server_socket:
                     client_socket = self.accept_connection()
-                    self.connections.append(client_socket)
+                    
+                    self.connections.update(
+                        {client_socket: client_socket.getpeername()}
+                    )
+
                 else:
                     request = self.receive_request(sock)
 
@@ -445,6 +450,7 @@ class Server(metaclass=ServerVerifier):
                         responses[sock.getpeername()] = response
                     else:
                         self.connections.remove(sock)
+
             if responses:
 
                 for client in responses:

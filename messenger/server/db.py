@@ -15,6 +15,7 @@ from sqlalchemy import (
     Column,
     Table,
     Integer,
+    Boolean,
     String,
     DateTime,
     Text,
@@ -96,7 +97,7 @@ class Client(CoreMixin, Base):  # type: ignore
     second_name = Column(String)
     bio = Column(Text)
     password = Column(String, nullable=False)
-    is_authenticate = False
+    is_authenticate = Column(Boolean, default=False)
 
     # relationships
     history = relationship('ClientHistory', back_populates='client')
@@ -120,6 +121,24 @@ class Client(CoreMixin, Base):  # type: ignore
             return session.query(cls).options(
                 subqueryload(cls.contacts).subqueryload('user')
             ).filter(cls.username == username).one_or_none()
+    
+    def add_address(self, address):
+        with SessionScope(Session) as session:
+            session.add(self)
+
+            self.history.append(
+                ClientHistory(address=address, client_id=self.id)
+            )
+            session.add(self)
+
+            session.comit()
+
+    def set_auth_state(self, state: bool) -> None:
+        with SessionScope(Session) as session:
+            self.is_authenticate = state
+            session.add(self)
+
+            session.commit()
 
 
 class ClientHistory(CoreMixin, Base):  # type: ignore
