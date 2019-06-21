@@ -19,9 +19,13 @@ from PyQt5.QtWidgets import (
     QVBoxLayout,
     QGroupBox,
     QColumnView,
+    QToolBar,
+    QAction
 )
 from PyQt5.QtGui import (
     QPixmap,
+    QFont,
+    QIcon
 )
 from PyQt5.QtCore import (
     Qt,
@@ -506,6 +510,7 @@ class ChatWindow(CommonMixin, QDialog):
 
     def __call__(self, kwargs):
         self.username = kwargs.get('username')
+        self.user.setText(f'Client: {self.username}')
         self.user_id = kwargs.get('user_id')
         self.contacts = kwargs.get('contacts')
         self.init_model(self.contacts.keys())
@@ -519,6 +524,16 @@ class ChatWindow(CommonMixin, QDialog):
             self.model = QStringListModel(contacts)
 
     def init_ui(self):
+
+        font = QFont()
+        font.setPointSize(18)
+        font.setBold(True)
+        font.setItalic(True)
+        font.setWeight(75)
+
+        self.user = QLabel()
+        self.user.setFont(font)
+
         self.status_group = StatusGroup(
             'Status log', client=self.client
         )
@@ -555,7 +570,26 @@ class ChatWindow(CommonMixin, QDialog):
         self.message_line_edit.setTextMargins(10, 0, 10, 0)
         self.message_line_edit.returnPressed.connect(self.send_message_request)
 
+        path = os.path.join(settings.BASE_DIR, 'media')
+        bold = QAction(QIcon(os.path.join(path, 'b.jpg')), 'Bold', self)
+        italic = QAction(
+            QIcon(os.path.join(path, 'i.jpg')), 'Italic', self
+        )
+        underlined = QAction(
+            QIcon(os.path.join(path, 'u.jpg')), 'Underlined', self
+        )
+
+        toolbar = QToolBar('Formatting')
+        toolbar.addAction(bold)
+        toolbar.addAction(italic)
+        toolbar.addAction(underlined)
+
+        bold.triggered.connect(self.action_bold)
+        italic.triggered.connect(self.action_italic)
+        underlined.triggered.connect(self.action_underlined)
+
         v_chat_layout = QVBoxLayout()
+        v_chat_layout.addWidget(toolbar)
         v_chat_layout.addWidget(lbl_chat)
         v_chat_layout.addWidget(self.chat_text_edit)
         v_chat_layout.addWidget(lbl_enter)
@@ -566,6 +600,7 @@ class ChatWindow(CommonMixin, QDialog):
         h_box_layout.addLayout(v_chat_layout)
 
         v_main_layout = QVBoxLayout()
+        v_main_layout.addWidget(self.user)
         v_main_layout.addWidget(self.status_group)
         v_main_layout.addLayout(h_box_layout)
 
@@ -573,6 +608,21 @@ class ChatWindow(CommonMixin, QDialog):
         self.resize(700, 500)
         self.setFixedSize(self.sizeHint())
         self.setWindowTitle('Chat')
+
+    def action_bold(self):
+        myFont = QFont()
+        myFont.setBold(True)
+        self.chat_text_edit.setFont(myFont)
+
+    def action_italic(self):
+        myFont = QFont()
+        myFont.setItalic(True)
+        self.chat_text_edit.setFont(myFont)
+
+    def action_underlined(self):
+        myFont = QFont()
+        myFont.setUnderline(True)
+        self.chat_text_edit.setFont(myFont)
 
     def send_chat_request(self, item):
 
