@@ -593,7 +593,9 @@ class ChatWindow(CommonMixin, QDialog):
             'chat_id': self.active_chat,
             'user_id': self.user_id,
             'contact_user_id': self.chats_data.get(self.active_chat).get(
-                'contact_user_id')
+                'contact_user_id'),
+            'contact_username': self.chats_data.get(self.active_chat).get(
+                'contact_username')
         }
 
         request = self.message_creator.create_request(user_data)

@@ -106,15 +106,15 @@ class ServerGui(QWidget):
     append_client = pyqtSignal(str)
     write_request = pyqtSignal(str)
     write_response = pyqtSignal(str)
-    update_model_add = pyqtSignal(dict)
+    update_model_add = pyqtSignal(str)
     update_model_delete = pyqtSignal(str)
 
     def __init__(self):
         super().__init__()
         self.init_ui()
 
-        self.clients = {}
-        self.model = QStringListModel(self.clients.keys())
+        self.clients = []
+        self.model = QStringListModel(self.clients)
         self.clients_column_view.setModel(self.model)
 
         self.append_log.connect(self.log_text_edit.append)
@@ -272,14 +272,14 @@ class ServerGui(QWidget):
         self.run_thread = ServerThread(self.server)
         self.run_thread.start()
 
-    def update_clients_list_add(self, client: Dict) -> None:
-        self.clients.update(client)
-        self.model.setStringList(self.clients.keys())
+    def update_clients_list_add(self, client: str) -> None:
+        self.clients.append(client)
+        self.model.setStringList(self.clients)
         self.clients_column_view.repaint()
 
     def update_clients_list_delete(self, client: str) -> None:
         self.clients.pop(client)
-        self.model.setStringList(self.clients.keys())
+        self.model.setStringList(self.clients)
         self.clients_column_view.repaint()
 
     def stop_server(self):

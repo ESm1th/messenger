@@ -420,11 +420,12 @@ class Server(metaclass=ServerVerifier):
         able to send data to them.
         """
 
-        self.connections = {}
+        self.connections = []
+        clients = {}
         responses = {}
 
         server_socket = self.make_socket()
-        self.connections.update({server_socket: None})
+        self.connections.append(server_socket)
 
         while self.state == 'Connected':
 
@@ -435,14 +436,7 @@ class Server(metaclass=ServerVerifier):
 
                 if sock is server_socket:
                     client_socket = self.accept_connection()
-
-                    self.connections.update(
-                        {
-                            client_socket: {
-                                'address': client_socket.getpeername(),
-                            }
-                        }
-                    )
+                    self.connections.append(client_socket)
 
                 else:
                     request = self.receive_request(sock)
@@ -450,21 +444,20 @@ class Server(metaclass=ServerVerifier):
                     if request:
 
                         response = self.process_request(request)
-                        responses[sock.getpeername()] = response
+                        responses[sock] = response
 
                         if response.data.get('action') == 'login':
 
-                            self.connections[sock].update({
-                                'username': response.data.get('username')
-                            })
+                            clients.update(
+                                {
+                                    response.data.get('username'): sock
+                                }
+                            )
 
                             self.notifier.notify(
                                 'client',
                                 action='add',
-                                data={
-                                    self.connections.get(sock).get('username'):
-                                    sock.getpeername()
-                                }
+                                data=response.data.get('username')
                             )
 
                         elif response.data.get('action') == 'logout':
@@ -472,7 +465,7 @@ class Server(metaclass=ServerVerifier):
                             self.notifier.notify(
                                 'client',
                                 action='delete',
-                                data=self.connections.get(sock).get('username')
+                                data=response.data.get('username')
                             )
 
                     else:
@@ -480,15 +473,14 @@ class Server(metaclass=ServerVerifier):
 
             if responses:
 
-                for client in responses:
+                for client_sock in responses:
 
-                    for sock in ready_to_write:
+                    if client_sock in ready_to_write:
 
                         try:
-                            if sock.getpeername() == client:
-                                self.send_response(
-                                    sock, responses.get(client)
-                                )
+                            self.send_response(
+                                client_sock, responses.get(client_sock)
+                            )
                         except ConnectionResetError as error:
                             logger.error(error, exc_info=True)
                         except ConnectionAbortedError as error:

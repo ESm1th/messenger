@@ -218,6 +218,8 @@ class AddMessage(ValidateMixin, RequestHandler):
                         'code': 200,
                         'info': 'Message has been added to database',
                         'chat_id': message.chat_id,
+                        'contact_username': self.request.data.get('contact_username'),
+                        'message': message.text
                     }
                 )
 
