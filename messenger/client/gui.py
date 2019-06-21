@@ -472,12 +472,12 @@ class ChatWindow(CommonMixin, QDialog):
     request_creator = ChatRequestCreator()
     delete_creator = DeleteContactRequestCreator()
     message_creator = MessageRequestCreator()
-    # message_listen_creator = MessageListenRequestCreator()
     logout_creator = LogoutRequestCreator()
 
     update_model_add = pyqtSignal(dict)
     update_model_delete = pyqtSignal(str)
     append_messages_to_textbox = pyqtSignal(list)
+    append_message_to_textbox = pyqtSignal(dict)
     open_chat = pyqtSignal(dict)
 
     active_chat: int
@@ -495,6 +495,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.update_model_add.connect(self.update_contacts_list_add)
         self.update_model_delete.connect(self.update_contacts_list_delete)
         self.append_messages_to_textbox.connect(self.append_messages)
+        self.append_message_to_textbox.connect(self.append_message)
         self.open_chat.connect(self.activate_chat)
 
         self.add_contact_window = AddContact(client=self.client, parent=self)
@@ -629,6 +630,23 @@ class ChatWindow(CommonMixin, QDialog):
                         )
                     )
 
+    def append_message(self, message):
+
+        if message and message.get('sender_id') == self.user_id:
+            self.chat_text_edit.append(
+                '{0}: {1}'.format(self.username, message.get('text'))
+            )
+
+        else:
+            self.chat_text_edit.append(
+                '{0}: {1}'.format(
+                    self.chats_data.get(self.active_chat).get(
+                        'contact_username'
+                    ),
+                    message.get('text')
+                )
+            )
+
     def add_contact(self):
         self.add_contact_window.show()
 
@@ -685,31 +703,6 @@ class ChatWindow(CommonMixin, QDialog):
         if messages:
             self.append_messages_to_textbox.emit(messages)
 
-        # send_thread = threading.Thread(
-        #     target=self.listen_for_new_messages, daemon=True
-        # )
-        # send_thread.start()
-
-    def listen_for_new_messages(self):
-
-        self.state = self.active_chat
-
-        while self.state is self.active_chat:
-
-            user_data = {
-                'username': self.username,
-                'chat_id': self.active_chat,
-                'lenght': self.messages_lenght
-            }
-
-            request = self.message_listen_creator.create_request(user_data)
-
-            raw_data = request.prepare().encode(
-                self.parent.client.settings.encoding_name
-            )
-            self.parent.client.send_request(raw_data)
-            time.sleep(1)
-
     def closeEvent(self, event):
 
         request = self.logout_creator.create_request(
@@ -723,6 +716,10 @@ class ChatWindow(CommonMixin, QDialog):
 
         event.accept()
         self.parent.show()
+
+        self.chat_text_edit.clear()
+        self.chat_text_edit.setDisabled(True)
+        self.message_line_edit.setDisabled(True)
 
 
 class ClientGui(CenterMixin, QWidget):

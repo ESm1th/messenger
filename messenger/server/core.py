@@ -405,7 +405,7 @@ class Server(metaclass=ServerVerifier):
     def close(self):
         if hasattr(self, 'socket'):
             self.state = 'Disconnected'
-            self.connections.pop(self.socket)
+            self.connections.remove(self.socket)
             self.socket.close()
 
             self.notifier.notify('state')
@@ -446,6 +446,14 @@ class Server(metaclass=ServerVerifier):
                         response = self.process_request(request)
                         responses[sock] = response
 
+                        if response.data.get('action') == 'add_message':
+
+                            client = clients.get(
+                                response.data.get('contact_username')
+                            )
+                            if client:
+                                responses[client] = response
+
                         if response.data.get('action') == 'login':
 
                             clients.update(
@@ -469,7 +477,7 @@ class Server(metaclass=ServerVerifier):
                             )
 
                     else:
-                        self.connections.pop(sock)
+                        self.connections.remove(sock)
 
             if responses:
 

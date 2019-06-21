@@ -4,7 +4,6 @@ from .controllers import (
     DeleteContact,
     GetChat,
     AddMessage,
-    NewMessageListener
 )
 
 
@@ -14,5 +13,4 @@ routes = [
     {'action': 'delete_contact', 'controller': DeleteContact},
     {'action': 'get_chat', 'controller': GetChat},
     {'action': 'add_message', 'controller': AddMessage},
-    {'action': 'message_listener', 'controller': NewMessageListener}
 ]

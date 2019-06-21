@@ -278,7 +278,7 @@ class ServerGui(QWidget):
         self.clients_column_view.repaint()
 
     def update_clients_list_delete(self, client: str) -> None:
-        self.clients.pop(client)
+        self.clients.remove(client)
         self.model.setStringList(self.clients)
         self.clients_column_view.repaint()
 

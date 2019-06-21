@@ -151,7 +151,9 @@ class NewMessageListener(Listener):
 
                 if self.employer.active_chat == kwargs.get('chat_id'):
 
-                    if kwargs.get('message'):
-                        self.employer.append_messages_to_textbox.emit(
-                            kwargs.get('messages')
-                        )
+                    self.employer.append_message_to_textbox.emit(
+                        {
+                            'sender_id': kwargs.get('sender_id'),
+                            'text': kwargs.get('message')
+                        }
+                    )

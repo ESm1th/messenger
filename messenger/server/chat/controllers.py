@@ -218,46 +218,10 @@ class AddMessage(ValidateMixin, RequestHandler):
                         'code': 200,
                         'info': 'Message has been added to database',
                         'chat_id': message.chat_id,
-                        'contact_username': self.request.data.get('contact_username'),
+                        'contact_username': self.request.data.get(
+                            'contact_username'
+                        ),
+                        'sender_id': self.request.data.get('user_id'),
                         'message': message.text
                     }
                 )
-
-
-class NewMessageListener(ValidateMixin, RequestHandler):
-
-    def process(self):
-
-        if self.validate_request():
-
-            with SessionScope(Session) as session:
-                chat = session.query(Chat).get(
-                    self.request.data.get('chat_id')
-                )
-                lenght = self.request.data.get('lenght')
-
-                if len(chat.messages) > lenght:
-
-                    messages = [
-                        (message.sender_id, message.text) for
-                        message in chat.messages[lenght:]
-                    ]
-
-                    return Response(
-                        self.request,
-                        data={
-                            'code': 200,
-                            'info': 'New messages has been added to database',
-                            'chat_id': chat.id,
-                            'messages': messages,
-                            'lenght': len(chat.messages)
-                        }
-                    )
-                else:
-                    return Response(
-                        self.request,
-                        data={
-                            'code': 205,
-                            'info': 'No new messages',
-                        }
-                    )
