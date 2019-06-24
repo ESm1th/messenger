@@ -20,7 +20,8 @@ from PyQt5.QtWidgets import (
     QGroupBox,
     QColumnView,
     QToolBar,
-    QAction
+    QAction,
+    QFileDialog
 )
 from PyQt5.QtGui import (
     QPixmap,
@@ -34,6 +35,12 @@ from PyQt5.QtCore import (
     pyqtSignal
 )
 
+from PIL import (
+    Image,
+    ImageDraw,
+)
+from PIL.ImageQt import ImageQt
+
 from core import Client
 from _requests import (
     RegistrationRequestCreator,
@@ -42,7 +49,8 @@ from _requests import (
     AddContactRequestCreator,
     DeleteContactRequestCreator,
     MessageRequestCreator,
-    LogoutRequestCreator
+    LogoutRequestCreator,
+    ProfileRequestCreator
 )
 from observers import (
     StateListener,
@@ -50,7 +58,8 @@ from observers import (
     LoginListener,
     ContactListener,
     ChatListener,
-    NewMessageListener
+    NewMessageListener,
+    ProfileListener
 )
 
 import settings
@@ -244,7 +253,8 @@ class CommonMixin:
         super().show()
 
     def closeEvent(self, event):
-        self.parent.show()
+        if self.parent:
+            self.parent.show()
         event.accept()
 
 
@@ -426,14 +436,75 @@ class ProfileForm(CommonMixin, QDialog):
         super().__init__(*args, **kwargs)
         self.profile_data = kwargs
         self.init_ui()
-    
+
     def init_ui(self):
+        self.avatar_picture = QLabel('None')
+        self.avatar_picture.setAlignment(Qt.AlignCenter)
+
+        v_avatar_layout = QVBoxLayout()
+        v_avatar_layout.addWidget(self.avatar_picture)
+        v_avatar_layout.setAlignment(Qt.AlignCenter)
+
+        avatar_group = QGroupBox('Avatar')
+        avatar_group.setLayout(v_avatar_layout)
+        avatar_group.setFixedWidth(300)
+
+        titles = {
+            'first_name': self.profile_data.get('first_name'),
+            'second_name': self.profile_data.get('second_name'),
+        }
+
+        profile_form_layout = FormFactory(fields=titles)
+        profile_form_layout.construct()
+        profile_form_layout.setFormAlignment(Qt.AlignCenter)
+        profile_form_layout.setSpacing(10)
+
+        profile_group = QGroupBox('Profile data')
+        profile_group.setLayout(profile_form_layout)
+
+        [
+            (
+                line.setAlignment(Qt.AlignLeft),
+                line.setTextMargins(10, 0, 10, 0)
+            )
+            for line in profile_group.findChildren(TitledLineEdit)
+        ]
+
+        get_avatar_button = QPushButton('Choose avatar')
+        get_avatar_button.setFixedHeight(40)
+        get_avatar_button.clicked.connect(self.avatar_file_dialog)
+
+        update_data_button = QPushButton('Submit')
+        update_data_button.setFixedHeight(40)
+        update_data_button.clicked.connect(self.send_update_profile_request)
+
+        v_box_profile_layout = QVBoxLayout()
+        v_box_profile_layout.addWidget(profile_group)
+        v_box_profile_layout.addWidget(get_avatar_button)
+        v_box_profile_layout.addWidget(update_data_button)
+
+        h_box_layout = QHBoxLayout()
+        h_box_layout.addWidget(avatar_group)
+        h_box_layout.addLayout(v_box_profile_layout)
+
+        self.setLayout(h_box_layout)
+        self.setWindowTitle('Profile data')
+        self.setFixedHeight(300)
+        self.setFixedWidth(600)
+        self.show()
+
+    def avatar_file_dialog(self):
+        image_path = QFileDialog.getOpenFileName(self, 'Open file', '/home')[0]
+        image = Image.open(image_path)
+
+        resized_image = image.resize((100, 100), Image.ANTIALIAS)
+        image_temp = ImageQt(resized_image.convert('RGBA'))
+
+        pixmap = QPixmap.fromImage(image_temp)
+        self.avatar_picture.setPixmap(pixmap)
+
+    def send_update_profile_request(self):
         pass
-        # titles = {
-        #     'first_name': 
-        #     'second_name':
-        #     'bio':
-        # }
 
 
 class AddContact(CommonMixin, QDialog):
@@ -493,12 +564,14 @@ class ChatWindow(CommonMixin, QDialog):
     delete_creator = DeleteContactRequestCreator()
     message_creator = MessageRequestCreator()
     logout_creator = LogoutRequestCreator()
+    profile_creator = ProfileRequestCreator()
 
     update_model_add = pyqtSignal(dict)
     update_model_delete = pyqtSignal(str)
     append_messages_to_textbox = pyqtSignal(list)
     append_message_to_textbox = pyqtSignal(dict)
     open_chat = pyqtSignal(dict)
+    open_profile = pyqtSignal(dict)
 
     active_chat: int
     messages_lenght: int
@@ -506,6 +579,7 @@ class ChatWindow(CommonMixin, QDialog):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._sender = Sender(self)
+        self.profile_listener = ProfileListener(self, self.client.notifier)
         self.contact_listener = ContactListener(self, self.client.notifier)
         self.chat_listener = ChatListener(self, self.client.notifier)
         self.new_message_listener = NewMessageListener(
@@ -517,6 +591,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.append_messages_to_textbox.connect(self.append_messages)
         self.append_message_to_textbox.connect(self.append_message)
         self.open_chat.connect(self.activate_chat)
+        self.open_profile.connect(self.profile_dialog)
 
         self.add_contact_window = AddContact(client=self.client, parent=self)
 
@@ -555,14 +630,13 @@ class ChatWindow(CommonMixin, QDialog):
         avatar_label.setPixmap(self.avatar_pixmap)
 
         profile_button = QPushButton('Change')
-        profile_button.clicked.connect(self.profile_dialog)
+        profile_button.clicked.connect(self.send_profile_request)
 
         h_user_layout = QHBoxLayout()
         h_user_layout.addWidget(self.user_label)
         h_user_layout.addWidget(avatar_label)
         h_user_layout.addWidget(profile_button)
         h_user_layout.setAlignment(profile_button, Qt.AlignBottom)
-
 
         self.status_group = StatusGroup(
             'Status log', client=self.client
@@ -653,22 +727,29 @@ class ChatWindow(CommonMixin, QDialog):
         myFont = QFont()
         myFont.setUnderline(True)
         self.chat_text_edit.setFont(myFont)
-    
-    def profile_dialog(self):
-        pass
+
+    def profile_dialog(self, data):
+        self.profile_dialog = ProfileForm(**data)
+        self.profile_dialog.show()
+
+    def send_profile_request(self):
+        user_data = {'username': self.username}
+        request = self.profile_creator.create_request(user_data)
+
+        raw_data = request.prepare().encode(
+            self.parent.client.settings.encoding_name
+        )
+        self.parent.client.send_request(raw_data)
 
     def send_chat_request(self, item):
-
         user_data = {
             'user_id': self.user_id,
             'contact_id': self.contacts.get(item.data()),
             'username': self.username
         }
-
         self._sender.send_request(user_data)
 
     def send_message_request(self):
-
         message = self.message_line_edit.text()
 
         user_data = {

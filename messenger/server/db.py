@@ -101,7 +101,6 @@ class Client(CoreMixin, Base):  # type: ignore
     second_name = Column(String)
     bio = Column(Text)
     password = Column(String, nullable=False)
-
     _is_authenticate = Column(Integer, default=0)
 
     # relationships
@@ -162,12 +161,15 @@ class Client(CoreMixin, Base):  # type: ignore
             session.refresh(self)
 
     def get_avatar(self, session):
+
         with SessionScope(session) as session:
             session.add(self)
 
             return next(
-                (picture.path for picture in self.pictures if picture.kind
-                == MediaTypes.AVATAR),
+                (
+                    picture.path for picture in self.pictures if picture.kind
+                    == MediaTypes.AVATAR
+                ),
                 None
             )
 

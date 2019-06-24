@@ -85,6 +85,15 @@ class DeleteContactRequest(RequestInterface):
     action = 'delete_contact'
 
 
+class ProfileRequest(RequestInterface):
+    """
+    Class represents request objects for
+    getting profile data of client.
+    """
+
+    action = 'profile'
+
+
 class RequestCreatorInterface(ABC):
     """Abstract base class for factory method pattern"""
 
@@ -142,3 +151,11 @@ class LogoutRequestCreator(RequestCreatorInterface):
         """Create LogoutRequest object"""
 
         return LogoutRequest(data)
+
+
+class ProfileRequestCreator(RequestCreatorInterface):
+
+    def create_request(self, data: Dict) -> LogoutRequest:
+        """Create ProfileRequest object"""
+
+        return ProfileRequest(data)
