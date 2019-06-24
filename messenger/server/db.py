@@ -1,3 +1,5 @@
+import enum
+import os
 from contextlib import AbstractContextManager
 from typing import List, Union
 
@@ -16,6 +18,7 @@ from sqlalchemy import (
     Column,
     Table,
     Integer,
+    Enum,
     Boolean,
     String,
     DateTime,
@@ -102,6 +105,7 @@ class Client(CoreMixin, Base):  # type: ignore
     _is_authenticate = Column(Integer, default=0)
 
     # relationships
+    pictures = relationship('Media', back_populates='uploader')
     history = relationship('ClientHistory', back_populates='client')
     chats = relationship(
         'Chat',
@@ -156,6 +160,16 @@ class Client(CoreMixin, Base):  # type: ignore
             session.add(self)
             session.commit()
             session.refresh(self)
+
+    def get_avatar(self, session):
+        with SessionScope(session) as session:
+            session.add(self)
+
+            return next(
+                (picture.path for picture in self.pictures if picture.kind
+                == MediaTypes.AVATAR),
+                None
+            )
 
 
 class ClientHistory(CoreMixin, Base):  # type: ignore
@@ -217,6 +231,40 @@ class Message(CoreMixin, Base):
     text = Column(String)
 
     chat = relationship('Chat', back_populates='messages')
+
+
+class MediaTypes(enum.Enum):
+    """Pictures types"""
+
+    AVATAR = enum.auto()
+    PICTURE = enum.auto()
+
+
+class Media(CoreMixin, Base):
+    """Represents 'media' table in database"""
+
+    __tablename__ = 'media'
+
+    kind = Column(Enum(MediaTypes))
+    uploader_id = Column(Integer, ForeignKey('clients.id'))
+    _path = Column(String)
+
+    uploader = relationship('Client', back_populates='pictures')
+
+    @hybrid_property
+    def path(self):
+        return self._path
+    
+    @path.setter
+    def path(self, path: str):
+        self._path = os.path.join(BASE_DIR, 'media', path)
+
+    def __repr__(self) -> str:
+        return '<{0}(uploader={1}, path={2})>'.format(
+            self.__class__.__name__,
+            self.uploader,
+            self.path
+        )
 
 
 Base.metadata.create_all(engine)

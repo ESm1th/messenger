@@ -420,6 +420,22 @@ class SettingsForm(CommonMixin, QDialog):
         self.close()
 
 
+class ProfileForm(CommonMixin, QDialog):
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.profile_data = kwargs
+        self.init_ui()
+    
+    def init_ui(self):
+        pass
+        # titles = {
+        #     'first_name': 
+        #     'second_name':
+        #     'bio':
+        # }
+
+
 class AddContact(CommonMixin, QDialog):
 
     request_creator = AddContactRequestCreator()
@@ -510,7 +526,7 @@ class ChatWindow(CommonMixin, QDialog):
 
     def __call__(self, kwargs):
         self.username = kwargs.get('username')
-        self.user.setText(f'Client: {self.username}')
+        self.user_label.setText(f'Client: {self.username}')
         self.user_id = kwargs.get('user_id')
         self.contacts = kwargs.get('contacts')
         self.init_model(self.contacts.keys())
@@ -531,8 +547,22 @@ class ChatWindow(CommonMixin, QDialog):
         font.setItalic(True)
         font.setWeight(75)
 
-        self.user = QLabel()
-        self.user.setFont(font)
+        self.user_label = QLabel()
+        self.user_label.setFont(font)
+
+        avatar_label = QLabel()
+        self.avatar_pixmap = QPixmap()
+        avatar_label.setPixmap(self.avatar_pixmap)
+
+        profile_button = QPushButton('Change')
+        profile_button.clicked.connect(self.profile_dialog)
+
+        h_user_layout = QHBoxLayout()
+        h_user_layout.addWidget(self.user_label)
+        h_user_layout.addWidget(avatar_label)
+        h_user_layout.addWidget(profile_button)
+        h_user_layout.setAlignment(profile_button, Qt.AlignBottom)
+
 
         self.status_group = StatusGroup(
             'Status log', client=self.client
@@ -600,7 +630,7 @@ class ChatWindow(CommonMixin, QDialog):
         h_box_layout.addLayout(v_chat_layout)
 
         v_main_layout = QVBoxLayout()
-        v_main_layout.addWidget(self.user)
+        v_main_layout.addLayout(h_user_layout)
         v_main_layout.addWidget(self.status_group)
         v_main_layout.addLayout(h_box_layout)
 
@@ -623,6 +653,9 @@ class ChatWindow(CommonMixin, QDialog):
         myFont = QFont()
         myFont.setUnderline(True)
         self.chat_text_edit.setFont(myFont)
+    
+    def profile_dialog(self):
+        pass
 
     def send_chat_request(self, item):
 

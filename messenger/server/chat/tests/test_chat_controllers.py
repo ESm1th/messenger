@@ -1,3 +1,4 @@
+import os
 from datetime import datetime
 
 import pytest
@@ -8,10 +9,13 @@ from db import (
     Client,
     Contact,
     Base,
+    Media,
+    MediaTypes
 )
 from chat.controllers import (
     Contacts,
-    GetChat
+    GetChat,
+    Profile
 )
 from core import Request
 
@@ -62,6 +66,27 @@ def test_user(make_session):
     Client.create(make_session, username='test_user', password='test_password')
     return Client.get_client(make_session, username='test_user')
 
+
+@pytest.fixture(scope='function')
+def add_pictures(
+    make_session,
+    test_user
+):
+    user = test_user
+
+    avatar = Media.create(
+        make_session,
+        uploader_id=user.id,
+        kind=MediaTypes.AVATAR,
+        path='avatar'
+    )
+
+    picture = Media.create(
+        make_session,
+        uploader_id=user.id,
+        kind=MediaTypes.PICTURE,
+        path='picture'
+    )
 
 @pytest.fixture(scope='function')
 def fill_db(make_session):
@@ -117,3 +142,30 @@ def test_chat(
 
     assert response.data.get('code') == 200
     assert response.data.get('contact_username') == 'test_3'
+
+
+@pytest.fixture(scope='function')
+def profile_request(test_user):
+
+    return Request(
+        action='profile',
+        time=datetime.now().timestamp(),
+        data={
+            'username': test_user.username
+        }
+    )
+
+
+def test_profile(
+    make_session,
+    test_user,
+    add_pictures,
+    profile_request
+):
+
+    response = Profile(profile_request, make_session).process()
+    
+    assert response.data.get('code') == 200
+    assert os.path.basename(
+        response.data.get('user_data').get('avatar')
+     ) == 'avatar'

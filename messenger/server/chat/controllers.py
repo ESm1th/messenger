@@ -225,3 +225,30 @@ class AddMessage(ValidateMixin, RequestHandler):
                         'message': message.text
                     }
                 )
+
+
+class Profile(ValidateMixin, RequestHandler):
+
+    model = Client
+
+    def process(self):
+
+        if self.validate_request():
+
+            user = self.model.get_client(
+                self.session, self.request.data.get('username')
+            )
+
+            return Response(
+                self.request,
+                data={
+                    'code': 200,
+                    'info': 'Profile data were retrieved from database',
+                    'user_data': {
+                        'first_name': user.first_name,
+                        'second_name': user.second_name,
+                        'bio': user.bio,
+                        'avatar': user.get_avatar(self.session)
+                    }
+                }                
+            )
