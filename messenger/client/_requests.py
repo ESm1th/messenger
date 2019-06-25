@@ -94,6 +94,15 @@ class ProfileRequest(RequestInterface):
     action = 'profile'
 
 
+class UpdateProfileRequest(RequestInterface):
+    """
+    Class represents request objects for
+    getting profile data of client.
+    """
+
+    action = 'update_profile'
+
+
 class RequestCreatorInterface(ABC):
     """Abstract base class for factory method pattern"""
 
@@ -155,7 +164,15 @@ class LogoutRequestCreator(RequestCreatorInterface):
 
 class ProfileRequestCreator(RequestCreatorInterface):
 
-    def create_request(self, data: Dict) -> LogoutRequest:
+    def create_request(self, data: Dict) -> ProfileRequest:
         """Create ProfileRequest object"""
 
         return ProfileRequest(data)
+
+
+class UpdateProfileRequestCreator(RequestCreatorInterface):
+
+    def create_request(self, data: Dict) -> UpdateProfileRequest:
+        """Create UpdateProfileRequest object"""
+
+        return UpdateProfileRequest(data)

@@ -1,8 +1,9 @@
 import sys
 import os
 import threading
-import time
+import base64
 from typing import Dict
+from io import BytesIO
 
 from PyQt5.QtWidgets import (
     QApplication,
@@ -50,7 +51,8 @@ from _requests import (
     DeleteContactRequestCreator,
     MessageRequestCreator,
     LogoutRequestCreator,
-    ProfileRequestCreator
+    ProfileRequestCreator,
+    UpdateProfileRequestCreator
 )
 from observers import (
     StateListener,
@@ -59,7 +61,8 @@ from observers import (
     ContactListener,
     ChatListener,
     NewMessageListener,
-    ProfileListener
+    ProfileListener,
+    AvatarListener
 )
 
 import settings
@@ -432,6 +435,8 @@ class SettingsForm(CommonMixin, QDialog):
 
 class ProfileForm(CommonMixin, QDialog):
 
+    request_creator = UpdateProfileRequestCreator()
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.profile_data = kwargs
@@ -494,17 +499,56 @@ class ProfileForm(CommonMixin, QDialog):
         self.show()
 
     def avatar_file_dialog(self):
-        image_path = QFileDialog.getOpenFileName(self, 'Open file', '/home')[0]
-        image = Image.open(image_path)
+        needed_size = 250, 250
 
-        resized_image = image.resize((100, 100), Image.ANTIALIAS)
-        image_temp = ImageQt(resized_image.convert('RGBA'))
+        self.image_path = QFileDialog.getOpenFileName(
+            self, 'Open file', '/home'
+        )[0]
+        image = Image.open(self.image_path)
 
+        image.thumbnail(
+            needed_size, Image.ANTIALIAS
+        )
+
+        image_temp = ImageQt(image.convert('RGBA'))
         pixmap = QPixmap.fromImage(image_temp)
         self.avatar_picture.setPixmap(pixmap)
 
     def send_update_profile_request(self):
-        pass
+        widgets = self.findChildren(TitledLineEdit)
+
+        user_data = {
+            widget.title: widget.text().strip()
+            for widget in widgets
+        }
+
+        user_data.update(
+            {'username': self.profile_data.get('username')}
+        )
+
+        if hasattr(self, 'image_path'):
+            image = Image.open(self.image_path)
+            image = image.resize((120, 120), Image.ANTIALIAS)
+            image_bytes = BytesIO()
+            image.save(image_bytes, 'png')
+
+            encoded_image_bytes = base64.b64encode(image_bytes.getvalue())
+
+            user_data.update(
+                {
+                    'avatar': encoded_image_bytes.decode('utf-8')
+                }
+            )
+
+        request = self.request_creator.create_request(user_data)
+        raw_data = request.prepare().encode(
+            self.client.settings.encoding_name
+        )
+
+        send_thread = threading.Thread(
+            target=self.client.send_request, args=(raw_data,)
+        )
+        send_thread.start()
 
 
 class AddContact(CommonMixin, QDialog):
@@ -570,6 +614,7 @@ class ChatWindow(CommonMixin, QDialog):
     update_model_delete = pyqtSignal(str)
     append_messages_to_textbox = pyqtSignal(list)
     append_message_to_textbox = pyqtSignal(dict)
+    set_avatar_signal = pyqtSignal(bytes)
     open_chat = pyqtSignal(dict)
     open_profile = pyqtSignal(dict)
 
@@ -582,6 +627,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.profile_listener = ProfileListener(self, self.client.notifier)
         self.contact_listener = ContactListener(self, self.client.notifier)
         self.chat_listener = ChatListener(self, self.client.notifier)
+        self.avatar_listener = AvatarListener(self, self.client.notifier)
         self.new_message_listener = NewMessageListener(
             self, self.client.notifier
         )
@@ -590,6 +636,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.update_model_delete.connect(self.update_contacts_list_delete)
         self.append_messages_to_textbox.connect(self.append_messages)
         self.append_message_to_textbox.connect(self.append_message)
+        self.set_avatar_signal.connect(self.set_avatar)
         self.open_chat.connect(self.activate_chat)
         self.open_profile.connect(self.profile_dialog)
 
@@ -625,16 +672,14 @@ class ChatWindow(CommonMixin, QDialog):
         self.user_label = QLabel()
         self.user_label.setFont(font)
 
-        avatar_label = QLabel()
-        self.avatar_pixmap = QPixmap()
-        avatar_label.setPixmap(self.avatar_pixmap)
+        self.avatar_label = QLabel()
 
         profile_button = QPushButton('Change')
         profile_button.clicked.connect(self.send_profile_request)
 
         h_user_layout = QHBoxLayout()
         h_user_layout.addWidget(self.user_label)
-        h_user_layout.addWidget(avatar_label)
+        h_user_layout.addWidget(self.avatar_label)
         h_user_layout.addWidget(profile_button)
         h_user_layout.setAlignment(profile_button, Qt.AlignBottom)
 
@@ -728,7 +773,18 @@ class ChatWindow(CommonMixin, QDialog):
         myFont.setUnderline(True)
         self.chat_text_edit.setFont(myFont)
 
+    def set_avatar(self, image):
+        image_bytes = base64.decodebytes(
+            bytes(image, encoding='utf-8')
+        )
+        pixmap = QPixmap()
+        pixmap.loadFromData(image_bytes)
+        self.avatar_label.setPixmap(pixmap)
+
     def profile_dialog(self, data):
+        data.update(
+            {'username': self.username, 'client': self.parent.client}
+        )
         self.profile_dialog = ProfileForm(**data)
         self.profile_dialog.show()
 

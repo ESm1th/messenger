@@ -1,3 +1,5 @@
+import base64
+
 from core import (
     RequestHandler,
     Response,
@@ -239,6 +241,11 @@ class Profile(ValidateMixin, RequestHandler):
                 self.session, self.request.data.get('username')
             )
 
+            avatar = user.get_avatar(self.session)
+            if avatar:
+                image = self.image_prepare(avatar.path)
+                print(avatar.path)
+                print(image)
             return Response(
                 self.request,
                 data={
@@ -248,7 +255,59 @@ class Profile(ValidateMixin, RequestHandler):
                         'first_name': user.first_name,
                         'second_name': user.second_name,
                         'bio': user.bio,
-                        'avatar': user.get_avatar(self.session)
+                        'avatar': image or None
                     }
-                }                
+                }
+            )
+
+    def image_prepare(self, path):
+        with open(path, 'rb') as file:
+            image = file.read()
+
+        encoded_image = base64.b64encode(image)
+        return encoded_image.decode('utf-8')
+
+
+class UpdateProfile(ValidateMixin, RequestHandler):
+
+    model = Client
+
+    def process(self):
+
+        if self.validate_request():
+
+            user = self.model.get_client(
+                self.session, self.request.data.pop('username')
+            )
+
+            avatar = self.request.data.pop('avatar')
+            print(type(avatar))
+            if avatar:
+
+                if user.get_avatar(self.session):
+                    user.delete_avatar(self.session)
+
+                user.set_avatar(self.session)
+
+                image_bytes = base64.b64decode(
+                    avatar.encode('utf-8')
+                )
+
+                with open(user.get_avatar(self.session).path, 'wb') as file:
+                    file.write(image_bytes)
+
+            user.update(self.session, **self.request.data)
+
+            return Response(
+                self.request,
+                data={
+                    'code': 200,
+                    'info': 'Profile data were retrieved from database',
+                    'user_data': {
+                        'first_name': user.first_name,
+                        'second_name': user.second_name,
+                        'bio': user.bio,
+                        'avatar': avatar
+                    }
+                }
             )

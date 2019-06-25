@@ -74,10 +74,15 @@ class CoreMixin:
 
     def update(self, seance, *args, **kwargs) -> None:
         with SessionScope(seance) as session:
+            session.add(self)
+
             for key, value in kwargs.items():
-                setattr(self, key, value)
+                if hasattr(self, key):
+                    setattr(self, key, value)
+
             session.add(self)
             session.commit()
+            session.refresh(self)
 
     def delete(self, seance) -> None:
         with SessionScope(seance) as session:
@@ -122,10 +127,12 @@ class Client(CoreMixin, Base):  # type: ignore
 
     @classmethod
     def get_client(cls, session, username) -> Union['Client', None]:
+
         with SessionScope(session) as session:
-            return session.query(cls).options(
+            client = session.query(cls).options(
                 subqueryload(cls.contacts).subqueryload('user')
             ).filter(cls.username == username).one_or_none()
+            return client
 
     @hybrid_property
     def is_authenticate(self):
@@ -167,11 +174,37 @@ class Client(CoreMixin, Base):  # type: ignore
 
             return next(
                 (
-                    picture.path for picture in self.pictures if picture.kind
+                    picture for picture in self.pictures if picture.kind
                     == MediaTypes.AVATAR
                 ),
                 None
             )
+
+    def set_avatar(self, session):
+
+        with SessionScope(session) as session:
+            session.add(self)
+
+            self.pictures.append(
+                Media(
+                    uploader_id=self.id,
+                    kind=MediaTypes.AVATAR,
+                    path=f'{self.username}_avatar.png'
+                )
+            )
+
+            session.add(self)
+            session.commit()
+            session.refresh(self)
+
+    def delete_avatar(self, session):
+        avatar = self.get_avatar(session)
+
+        with SessionScope(session) as session:
+            session.add(self)
+            session.add(avatar)
+            session.delete(avatar)
+            session.commit()
 
 
 class ClientHistory(CoreMixin, Base):  # type: ignore
@@ -256,7 +289,7 @@ class Media(CoreMixin, Base):
     @hybrid_property
     def path(self):
         return self._path
-    
+
     @path.setter
     def path(self, path: str):
         self._path = os.path.join(BASE_DIR, 'media', path)
@@ -264,7 +297,7 @@ class Media(CoreMixin, Base):
     def __repr__(self) -> str:
         return '<{0}(uploader={1}, path={2})>'.format(
             self.__class__.__name__,
-            self.uploader,
+            self.uploader_id,
             self.path
         )
 
