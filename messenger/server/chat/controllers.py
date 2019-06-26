@@ -257,7 +257,7 @@ class Profile(ValidateMixin, RequestHandler):
                 data={
                     'code': 200,
                     'info': 'Profile data were retrieved from database',
-                    'user_data': user_data
+                    'user_data': user_data,
                 }
             )
 
@@ -282,7 +282,7 @@ class UpdateProfile(ValidateMixin, RequestHandler):
             )
 
             avatar = self.request.data.pop('avatar', None)
-            
+
             if avatar:
 
                 if user.get_avatar(self.session):

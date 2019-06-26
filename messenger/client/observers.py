@@ -107,7 +107,7 @@ class LoginListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-
+        
         if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs)
             self.employer.close_window.emit()
@@ -181,11 +181,9 @@ class AvatarListener(Listener):
 
         if kwargs.get('code') == 200:
 
-            if kwargs.get('action') in ('update_profile', 'login'):
-                
-                if kwargs.get('avatar'):
-                    image_bytes = base64.b64decode(
-                        kwargs.get('avatar').encode('utf-8')
-                    )
-                    print(type(image_bytes))
+            if kwargs.get('action') in ('login', 'update_profile'):
+
+                avatar = kwargs.get('user_data').get('avatar')
+                if avatar:
+                    image_bytes = base64.b64decode(avatar.encode('utf-8'))
                     self.employer.set_avatar_signal.emit(image_bytes)

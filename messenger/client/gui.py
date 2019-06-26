@@ -446,6 +446,14 @@ class ProfileForm(CommonMixin, QDialog):
         self.avatar_picture = QLabel('None')
         self.avatar_picture.setAlignment(Qt.AlignCenter)
 
+        if self.profile_data.get('avatar'):
+            image_bytes = base64.b64decode(
+                self.profile_data.get('avatar').encode('utf-8')
+            )
+            pixmap = QPixmap()
+            pixmap.loadFromData(image_bytes)
+            self.avatar_picture.setPixmap(pixmap)
+
         v_avatar_layout = QVBoxLayout()
         v_avatar_layout.addWidget(self.avatar_picture)
         v_avatar_layout.setAlignment(Qt.AlignCenter)
@@ -528,7 +536,7 @@ class ProfileForm(CommonMixin, QDialog):
 
         if hasattr(self, 'image_path'):
             image = Image.open(self.image_path)
-            image = image.resize((120, 120), Image.ANTIALIAS)
+            image = image.resize((80, 80), Image.ANTIALIAS)
             image_bytes = BytesIO()
             image.save(image_bytes, 'png')
 
@@ -647,10 +655,10 @@ class ChatWindow(CommonMixin, QDialog):
         self.chats_data = {}
 
     def __call__(self, kwargs):
-        self.username = kwargs.get('username')
-        self.user_label.setText(f'Client: {self.username}')
-        self.user_id = kwargs.get('user_id')
-        self.contacts = kwargs.get('contacts')
+        self.username = kwargs.get('user_data').get('username')
+        self.user_label.setText(f'{self.username}')
+        self.user_id = kwargs.get('user_data').get('user_id')
+        self.contacts = kwargs.get('user_data').get('contacts')
         self.init_model(self.contacts.keys())
         self.column_view.setModel(self.model)
         self.show()
@@ -673,15 +681,22 @@ class ChatWindow(CommonMixin, QDialog):
         self.user_label.setFont(font)
 
         self.avatar_label = QLabel()
+        self.avatar_label.setHidden(True)
 
-        profile_button = QPushButton('Change')
+        profile_button = QPushButton('Change profile')
         profile_button.clicked.connect(self.send_profile_request)
 
+        v_user_layout = QVBoxLayout()
+        v_user_layout.addWidget(self.user_label)
+        v_user_layout.addWidget(profile_button)
+
         h_user_layout = QHBoxLayout()
-        h_user_layout.addWidget(self.user_label)
         h_user_layout.addWidget(self.avatar_label)
-        h_user_layout.addWidget(profile_button)
-        h_user_layout.setAlignment(profile_button, Qt.AlignBottom)
+        h_user_layout.addLayout(v_user_layout)
+        h_user_layout.setAlignment(Qt.AlignLeft)
+
+        client_group = QGroupBox('Client')
+        client_group.setLayout(h_user_layout)
 
         self.status_group = StatusGroup(
             'Status log', client=self.client
@@ -749,7 +764,7 @@ class ChatWindow(CommonMixin, QDialog):
         h_box_layout.addLayout(v_chat_layout)
 
         v_main_layout = QVBoxLayout()
-        v_main_layout.addLayout(h_user_layout)
+        v_main_layout.addWidget(client_group)
         v_main_layout.addWidget(self.status_group)
         v_main_layout.addLayout(h_box_layout)
 
@@ -774,12 +789,10 @@ class ChatWindow(CommonMixin, QDialog):
         self.chat_text_edit.setFont(myFont)
 
     def set_avatar(self, image):
-        image_bytes = base64.decodebytes(
-            bytes(image, encoding='utf-8')
-        )
         pixmap = QPixmap()
-        pixmap.loadFromData(image_bytes)
+        pixmap.loadFromData(image)
         self.avatar_label.setPixmap(pixmap)
+        self.avatar_label.setHidden(False)
 
     def profile_dialog(self, data):
         data.update(

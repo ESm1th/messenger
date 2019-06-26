@@ -325,7 +325,9 @@ class Server(metaclass=ServerVerifier):
         """
 
         try:
-            raw_request = client_socket.recv(self.settings.buffer_size)
+            raw_request = client_socket.recv(
+                self.settings.buffer_size, socket.MSG_WAITALL
+            )
             request_as_string = raw_request.decode(self.settings.encoding_name)
 
             logger.info('Request: {0}'.format(request_as_string))

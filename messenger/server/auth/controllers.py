@@ -1,4 +1,5 @@
 import logging
+import base64
 
 from core import (
     RequestHandler,
@@ -96,13 +97,24 @@ class Login(AuthBase):
                         str(self.request.data.get('address'))
                     )
 
+                    user_data = {
+                        'username': user.username,
+                        'user_id': user.id,
+                        'contacts': contacts,                        
+                    }
+
+                    avatar = user.get_avatar(self.session)
+
+                    if avatar:
+                        image = self.image_prepare(avatar.path)
+                        user_data.update({'avatar': image})
+
                     return Response(
-                        self.request, {
+                        self.request,
+                        data={
                             'code': 200,
                             'info': 'Client logged in',
-                            'username': user.username,
-                            'user_id': user.id,
-                            'contacts': contacts,
+                            'user_data': user_data
                         }
                     )
                 else:
@@ -117,6 +129,13 @@ class Login(AuthBase):
                 )
         else:
             return Response_400(self.request)
+    
+    def image_prepare(self, path):
+        with open(path, 'rb') as file:
+            image = file.read()
+
+        encoded_image = base64.b64encode(image)
+        return encoded_image.decode('utf-8')
 
 
 class Logout(AuthBase):
