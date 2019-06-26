@@ -241,22 +241,23 @@ class Profile(ValidateMixin, RequestHandler):
                 self.session, self.request.data.get('username')
             )
 
+            user_data = {
+                'first_name': user.first_name,
+                'second_name': user.second_name,
+                'bio': user.bio,
+            }
             avatar = user.get_avatar(self.session)
+
             if avatar:
                 image = self.image_prepare(avatar.path)
-                print(avatar.path)
-                print(image)
+                user_data.update({'avatar': image})
+
             return Response(
                 self.request,
                 data={
                     'code': 200,
                     'info': 'Profile data were retrieved from database',
-                    'user_data': {
-                        'first_name': user.first_name,
-                        'second_name': user.second_name,
-                        'bio': user.bio,
-                        'avatar': image or None
-                    }
+                    'user_data': user_data
                 }
             )
 
@@ -280,8 +281,8 @@ class UpdateProfile(ValidateMixin, RequestHandler):
                 self.session, self.request.data.pop('username')
             )
 
-            avatar = self.request.data.pop('avatar')
-            print(type(avatar))
+            avatar = self.request.data.pop('avatar', None)
+            
             if avatar:
 
                 if user.get_avatar(self.session):
