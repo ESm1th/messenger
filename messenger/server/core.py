@@ -453,23 +453,28 @@ class Server(metaclass=ServerVerifier):
                             client = clients.get(
                                 response.data.get('contact_username')
                             )
+
                             if client:
                                 responses[client] = response
 
                         if response.data.get('action') == 'login':
 
-                            clients.update(
-                                {
-                                    response.data.get('username'): sock
-                                }
-                            )
+                            data = response.data.get('user_data')
 
-                            self.notifier.notify(
-                                'client',
-                                action='add',
-                                data=response.data.get('user_data').get(
-                                    'username')
-                            )
+                            if data:
+                                clients.update(
+                                    {
+                                        data.get('username'): sock
+                                    }
+                                )
+
+                                data = response.data.get('user_data')
+
+                                self.notifier.notify(
+                                    'client',
+                                    action='add',
+                                    data=data.get('username')
+                                )
 
                         elif response.data.get('action') == 'logout':
 

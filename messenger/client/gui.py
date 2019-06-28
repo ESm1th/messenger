@@ -694,6 +694,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.avatar_label = QLabel()
         self.avatar_label.setHidden(True)
         profile_button = QPushButton('Change profile')
+        profile_button.setAutoDefault(False)
         profile_button.clicked.connect(self.send_profile_request)
 
         v_user_layout = QVBoxLayout()

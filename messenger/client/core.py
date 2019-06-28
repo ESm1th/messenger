@@ -131,7 +131,7 @@ class ClientVerifier(type):
 
 
 class FtpClient(Singleton):
-    """Represent ftp client"""
+    """Represents ftp client"""
 
     ftp_settings = (
         'ftp_host',
