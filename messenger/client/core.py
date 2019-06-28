@@ -1,6 +1,8 @@
 import socket
 import json
 import logging
+import ftplib
+from io import BytesIO
 from typing import Dict
 from argparse import Namespace
 from dis import code_info
@@ -126,6 +128,60 @@ class ClientVerifier(type):
                     )
 
         type.__init__(self, cls, bases, cls_dict)
+
+
+class FtpClient(Singleton):
+    """Represent ftp client"""
+
+    ftp_settings = (
+        'ftp_host',
+        'ftp_user',
+        'ftp_password',
+        'ftp_path'
+    )
+
+    def __init__(self) -> None:
+        for attr in self.ftp_settings:
+            val = getattr(settings, attr.upper(), None)
+            setattr(self, attr, val)
+
+    def connect(self):
+        self.connection = ftplib.FTP(
+            host=self.ftp_host,
+            user=self.ftp_user,
+            passwd=self.ftp_password,
+        )
+
+    def upload_file(self, filename, bytes_data):
+        try:
+            self.connection.cwd(self.ftp_path)
+            status = self.connection.storbinary(
+                ' '.join(['STOR', filename]), bytes_data
+            )
+
+            if not status.startswith('226 Transfer complete'):
+                return False
+            return True
+
+        finally:
+            self.connection.quit()
+
+    def download_file(self, filename):
+        try:
+            self.connection.cwd(self.ftp_path)
+
+            in_memory_file = BytesIO()
+
+            status = self.connection.retrbinary(
+                ' '.join(['RETR', filename]), in_memory_file.write
+            )
+
+            if not status.startswith('226 Transfer complete'):
+                return False
+            return in_memory_file
+
+        finally:
+            self.connection.quit()
 
 
 class Client(metaclass=ClientVerifier):

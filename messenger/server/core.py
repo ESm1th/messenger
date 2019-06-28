@@ -467,7 +467,8 @@ class Server(metaclass=ServerVerifier):
                             self.notifier.notify(
                                 'client',
                                 action='add',
-                                data=response.data.get('username')
+                                data=response.data.get('user_data').get(
+                                    'username')
                             )
 
                         elif response.data.get('action') == 'logout':

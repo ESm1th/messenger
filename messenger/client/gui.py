@@ -1,7 +1,7 @@
 import sys
 import os
 import threading
-import base64
+from ftplib import FTP
 from typing import Dict
 from io import BytesIO
 
@@ -36,13 +36,13 @@ from PyQt5.QtCore import (
     pyqtSignal
 )
 
-from PIL import (
-    Image,
-    ImageDraw,
-)
+from PIL import Image
 from PIL.ImageQt import ImageQt
 
-from core import Client
+from core import (
+    Client,
+    FtpClient
+)
 from _requests import (
     RegistrationRequestCreator,
     LoginRequestCreator,
@@ -439,6 +439,7 @@ class ProfileForm(CommonMixin, QDialog):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self.ftp_client = FtpClient()
         self.profile_data = kwargs
         self.init_ui()
 
@@ -446,13 +447,20 @@ class ProfileForm(CommonMixin, QDialog):
         self.avatar_picture = QLabel('None')
         self.avatar_picture.setAlignment(Qt.AlignCenter)
 
-        if self.profile_data.get('avatar'):
-            image_bytes = base64.b64decode(
-                self.profile_data.get('avatar').encode('utf-8')
-            )
-            pixmap = QPixmap()
-            pixmap.loadFromData(image_bytes)
-            self.avatar_picture.setPixmap(pixmap)
+        file_name = self.profile_data.get('file_name')
+
+        if file_name:
+            self.ftp_client.connect()
+            data = self.ftp_client.download_file(file_name)
+
+            if data:
+                pixmap = QPixmap()
+                pixmap.loadFromData(data.getvalue())
+                self.avatar_picture.setPixmap(pixmap)
+            else:
+                self.avatar_picture.setText(
+                    'Error has occurred when downloading avatar'
+                )
 
         v_avatar_layout = QVBoxLayout()
         v_avatar_layout.addWidget(self.avatar_picture)
@@ -539,13 +547,16 @@ class ProfileForm(CommonMixin, QDialog):
             image = image.resize((80, 80), Image.ANTIALIAS)
             image_bytes = BytesIO()
             image.save(image_bytes, 'png')
+            image_bytes.seek(0)
 
-            encoded_image_bytes = base64.b64encode(image_bytes.getvalue())
+            self.ftp_client.connect()
+            username = self.profile_data.get('username')
+            upload_status = self.ftp_client.upload_file(
+                f'{username}_avatar.png', image_bytes
+            )
 
             user_data.update(
-                {
-                    'avatar': encoded_image_bytes.decode('utf-8')
-                }
+                {'upload_status': upload_status}
             )
 
         request = self.request_creator.create_request(user_data)
@@ -622,7 +633,7 @@ class ChatWindow(CommonMixin, QDialog):
     update_model_delete = pyqtSignal(str)
     append_messages_to_textbox = pyqtSignal(list)
     append_message_to_textbox = pyqtSignal(dict)
-    set_avatar_signal = pyqtSignal(bytes)
+    set_avatar_signal = pyqtSignal(str)
     open_chat = pyqtSignal(dict)
     open_profile = pyqtSignal(dict)
 
@@ -632,6 +643,7 @@ class ChatWindow(CommonMixin, QDialog):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._sender = Sender(self)
+        self.ftp_client = FtpClient()
         self.profile_listener = ProfileListener(self, self.client.notifier)
         self.contact_listener = ContactListener(self, self.client.notifier)
         self.chat_listener = ChatListener(self, self.client.notifier)
@@ -651,7 +663,6 @@ class ChatWindow(CommonMixin, QDialog):
         self.add_contact_window = AddContact(client=self.client, parent=self)
 
         self.init_ui()
-
         self.chats_data = {}
 
     def __call__(self, kwargs):
@@ -682,7 +693,6 @@ class ChatWindow(CommonMixin, QDialog):
 
         self.avatar_label = QLabel()
         self.avatar_label.setHidden(True)
-
         profile_button = QPushButton('Change profile')
         profile_button.clicked.connect(self.send_profile_request)
 
@@ -788,11 +798,19 @@ class ChatWindow(CommonMixin, QDialog):
         myFont.setUnderline(True)
         self.chat_text_edit.setFont(myFont)
 
-    def set_avatar(self, image):
-        pixmap = QPixmap()
-        pixmap.loadFromData(image)
-        self.avatar_label.setPixmap(pixmap)
-        self.avatar_label.setHidden(False)
+    def set_avatar(self, path):
+        self.ftp_client.connect()
+        data = self.ftp_client.download_file(path)
+
+        if data:
+            pixmap = QPixmap()
+            pixmap.loadFromData(data.getvalue())
+            self.avatar_label.setPixmap(pixmap)
+            self.avatar_label.setHidden(False)
+        else:
+            self.avatar_label.setText(
+                'Error has occurred when downloading avatar'
+            )
 
     def profile_dialog(self, data):
         data.update(

@@ -282,17 +282,9 @@ class Media(CoreMixin, Base):
 
     kind = Column(Enum(MediaTypes))
     uploader_id = Column(Integer, ForeignKey('clients.id'))
-    _path = Column(String)
+    path = Column(String)
 
     uploader = relationship('Client', back_populates='pictures')
-
-    @hybrid_property
-    def path(self):
-        return self._path
-
-    @path.setter
-    def path(self, path: str):
-        self._path = os.path.join(BASE_DIR, 'media', path)
 
     def __repr__(self) -> str:
         return '<{0}(uploader={1}, path={2})>'.format(

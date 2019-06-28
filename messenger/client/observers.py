@@ -178,12 +178,10 @@ class AvatarListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-
         if kwargs.get('code') == 200:
 
             if kwargs.get('action') in ('login', 'update_profile'):
+                file_name = kwargs.get('user_data').get('file_name')
 
-                avatar = kwargs.get('user_data').get('avatar')
-                if avatar:
-                    image_bytes = base64.b64decode(avatar.encode('utf-8'))
-                    self.employer.set_avatar_signal.emit(image_bytes)
+                if file_name:
+                    self.employer.set_avatar_signal.emit(file_name)

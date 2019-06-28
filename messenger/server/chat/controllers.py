@@ -249,8 +249,7 @@ class Profile(ValidateMixin, RequestHandler):
             avatar = user.get_avatar(self.session)
 
             if avatar:
-                image = self.image_prepare(avatar.path)
-                user_data.update({'avatar': image})
+                user_data.update({'file_name': avatar.path})
 
             return Response(
                 self.request,
@@ -260,13 +259,6 @@ class Profile(ValidateMixin, RequestHandler):
                     'user_data': user_data,
                 }
             )
-
-    def image_prepare(self, path):
-        with open(path, 'rb') as file:
-            image = file.read()
-
-        encoded_image = base64.b64encode(image)
-        return encoded_image.decode('utf-8')
 
 
 class UpdateProfile(ValidateMixin, RequestHandler):
@@ -281,21 +273,13 @@ class UpdateProfile(ValidateMixin, RequestHandler):
                 self.session, self.request.data.pop('username')
             )
 
-            avatar = self.request.data.pop('avatar', None)
+            status = self.request.data.pop('upload_status', None)
 
-            if avatar:
+            if status:
 
                 if user.get_avatar(self.session):
                     user.delete_avatar(self.session)
-
                 user.set_avatar(self.session)
-
-                image_bytes = base64.b64decode(
-                    avatar.encode('utf-8')
-                )
-
-                with open(user.get_avatar(self.session).path, 'wb') as file:
-                    file.write(image_bytes)
 
             user.update(self.session, **self.request.data)
 
@@ -308,7 +292,7 @@ class UpdateProfile(ValidateMixin, RequestHandler):
                         'first_name': user.first_name,
                         'second_name': user.second_name,
                         'bio': user.bio,
-                        'avatar': avatar
+                        'file_name': user.get_avatar(self.session).path
                     }
                 }
             )
