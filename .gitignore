@@ -23,3 +23,6 @@ venv/
 # mypy files
 .mypy_cache/
 vs_messenger_wokspace.code-workspace
+
+# ftp settings
+ftp.json

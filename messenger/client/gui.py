@@ -1,7 +1,6 @@
 import sys
 import os
 import threading
-from ftplib import FTP
 from typing import Dict
 from io import BytesIO
 

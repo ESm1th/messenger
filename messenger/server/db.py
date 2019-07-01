@@ -1,5 +1,4 @@
 import enum
-import os
 from contextlib import AbstractContextManager
 from typing import List, Union
 
