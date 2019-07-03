@@ -46,7 +46,7 @@ class ServerThread(QThread):
         super().__init__()
 
     def run(self):
-        self.server()
+        self.server.run()
 
 
 class TitleMixin:

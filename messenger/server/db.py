@@ -29,7 +29,7 @@ from sqlalchemy import (
 
 from settings import BASE_DIR
 
-engine = create_engine('sqlite:///{0}/db.sqlite'.format(BASE_DIR), echo=True)
+engine = create_engine('sqlite:///{0}/db.sqlite'.format(BASE_DIR), echo=False)
 Session = sessionmaker(bind=engine)
 Base = declarative_base()
 

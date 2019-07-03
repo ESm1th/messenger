@@ -149,8 +149,9 @@ class NewMessageListener(Listener):
         if kwargs.get('code') == 200:
 
             if kwargs.get('action') == 'add_message':
+                active_chat = getattr(self.employer, 'active_chat', None)
 
-                if self.employer.active_chat == kwargs.get('chat_id'):
+                if active_chat and active_chat == kwargs.get('chat_id'):
 
                     self.employer.append_message_to_textbox.emit(
                         {

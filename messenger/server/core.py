@@ -1,15 +1,14 @@
-import socket
 import json
 import re
 from dis import code_info
 from logging import getLogger
-from typing import Dict, Any
+from typing import Dict, Any, List
 from abc import ABC, abstractmethod
 from datetime import datetime
 from argparse import Namespace
 from importlib import import_module
 from functools import reduce
-from select import select
+import asyncio
 
 import settings
 from db import Base, Session
@@ -279,108 +278,136 @@ class Server(metaclass=ServerVerifier):
         self.session = Session
         self.notifier = BaseNotifier(self)
 
-    def make_socket(self):
+    def run(self):
+        asyncio.set_event_loop(asyncio.new_event_loop())
+        loop = asyncio.get_event_loop()
+
+        loop.connections = []
+        loop.clients = {}
+
+        endpoint_factory = asyncio.start_server(
+            self.handle_connection,
+            host=self.settings.host,
+            port=self.settings.port,
+        )
+
+        self.endpoint = loop.run_until_complete(endpoint_factory)
+        self.state = 'Connected'
+
+        info = 'Server started with {0}:{1}'.format(
+            self.settings.host, self.settings.port
+        )
+        self.notifier.notify('log', info=info)
+        self.notifier.notify('state')
 
         try:
-            self.socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            self.socket.bind((self.settings.host, self.settings.port))
-            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            self.socket.settimeout(0)
-            self.socket.listen(self.settings.connections)
-            self.state = 'Connected'
-
-            info = 'Server started with {0}:{1}'.format(
-                self.settings.host, self.settings.port
-            )
-            self.notifier.notify('log', info=info)
-
-            return self.socket
-
-        except OSError as error:
+            loop.run_forever()
+        except KeyboardInterrupt:
+            print('App closed from key')
+        except Exception as error:
             logger.error(error, exc_info=True)
-            del self.socket
             self.state = 'Disconnected'
             self.notifier.notify('log', info=str(error))
-
         finally:
-            self.notifier.notify('state')
+            self.close()
 
-    def accept_connection(self):
-        """Accept connection and return connected socket"""
+    async def handle_connection(self, reader, writer):
+        """
+        Handles connections: reads from reader stream, writes to writer stream.
+        """
 
-        client_socket, client_address = self.socket.accept()
-        client_socket.setblocking(0)
-
-        info = 'Client with address {} detected'.format(client_address)
+        address = writer.get_extra_info('peername')
+        info = 'Client with address {} detected'.format(address)
         logger.info(info)
         self.notifier.notify('log', info=info)
 
-        return client_socket
+        loop = asyncio.get_event_loop()
+        loop.connections.append(writer)
 
-    def receive_request(self, client_socket):
-        """
-        Receiving data from connected socket and return processed request.
-        If no data received (client has disconnected) or client connection
-        has reset - return None
-        """
-
-        try:
-            raw_request = client_socket.recv(
-                self.settings.buffer_size, socket.MSG_WAITALL
-            )
-            request_as_string = raw_request.decode(self.settings.encoding_name)
-
-            logger.info('Request: {0}'.format(request_as_string))
+        while True:
+            raw_request = await reader.read(self.settings.buffer_size)
 
             if raw_request:
+                request_as_string = raw_request.decode(
+                    self.settings.encoding_name
+                )
+
+                logger.info('Request: {0}'.format(request_as_string))
 
                 self.notifier.notify(
                     'request',
-                    request=json.dumps(json.loads(request_as_string), indent=4)
+                    request=json.dumps(
+                        json.loads(request_as_string),
+                        indent=4
+                    )
                 )
 
                 request_attributes = json.loads(
                     raw_request.decode(self.settings.encoding_name)
                 )
 
-                if request_attributes.get('action') == 'login':
-
-                    request_attributes['data'].update(
-                        {'address': client_socket.getpeername()}
-                    )
-
                 request = Request(**request_attributes)
-                return request
+                response = await self.process_request(request)
 
-            else:
-                logger.info(
-                    'Client {} disconnected'.format(
-                        client_socket.getpeername()
+                if response:
+
+                    if response.data.get('action') != 'logout':
+
+                        if response.data.get('action') == 'login':
+                            data = response.data.get('user_data')
+
+                            if data:
+                                loop.clients.update(
+                                    {
+                                        data.get('username'): writer
+                                    }
+                                )
+
+                                self.notifier.notify(
+                                    'client',
+                                    action='add',
+                                    data=data.get('username')
+                                )
+
+                        prepared_response = json.dumps(
+                            response.prepare()
+                        ).encode(self.settings.encoding_name)
+
+                        if response.data.get('action') == 'add_message':
+                            client = response.data.get('contact_username')
+
+                            if client in loop.clients:
+                                client_write = loop.clients[client]
+                                client_write.write(
+                                    prepared_response
+                                )
+                                await client_write.drain()
+
+                        writer.write(prepared_response)
+
+                        await writer.drain()
+                    else:
+                        self.notifier.notify(
+                            'client',
+                            action='delete',
+                            data=response.data.get('username')
+                        )
+
+                logger.info(f'Response {response} sent.')
+                logger.info(prepared_response)
+
+                self.notifier.notify(
+                    'response',
+                    response=json.dumps(
+                        response.data, indent=4
                     )
                 )
-                client_socket.close()
+            else:
+                writer.close()
+                logger.info(f'Client {address} disconnected')
+                return
 
-        except ConnectionResetError as error:
-            logger.error(error, exc_info=True)
-        except ConnectionAbortedError as error:
-            logger.error(error, exc_info=True)
-
-    def send_response(self, client_socket, response):
-        """Send response to client"""
-
-        logger.info(f'Response {response} sent.')
-        logger.info(response.prepare())
-
-        self.notifier.notify(
-            'response',
-            response=json.dumps(response.data, indent=4)
-        )
-
-        return client_socket.send(
-            json.dumps(response.prepare()).encode(self.settings.encoding_name)
-        )
-
-    def process_request(self, request):
+    async def process_request(self, request):
         """Processing received request from client"""
 
         if request.is_valid():
@@ -405,101 +432,12 @@ class Server(metaclass=ServerVerifier):
             return Response_400(request)
 
     def close(self):
-        if hasattr(self, 'socket'):
+        if hasattr(self, 'endpoint'):
+            loop = asyncio.get_event_loop()
+            self.endpoint.close()
+
+            loop.run_until_complete(self.endpoint.wait_closed())
+            del self.endpoint
+
             self.state = 'Disconnected'
-            self.connections.remove(self.socket)
-            self.socket.close()
-
             self.notifier.notify('state')
-            self.notifier.notify('log', info='Server closed')
-            logger.info('Server closed')
-
-    def __call__(self):
-        """
-        Monitor all connected clients with 'select' function.
-        'ready_to_read' - list of sockets that have data to read,
-        'ready_to_write' - list of sockets that have free buffer and
-        able to send data to them.
-        """
-
-        self.connections = []
-        clients = {}
-        responses = {}
-
-        server_socket = self.make_socket()
-        self.connections.append(server_socket)
-
-        while self.state == 'Connected':
-
-            ready_to_read, ready_to_write, _ = select(
-                self.connections, self.connections, self.connections, 0)
-
-            for sock in ready_to_read:
-
-                if sock is server_socket:
-                    client_socket = self.accept_connection()
-                    self.connections.append(client_socket)
-
-                else:
-                    request = self.receive_request(sock)
-
-                    if request:
-
-                        response = self.process_request(request)
-                        responses[sock] = response
-
-                        if response.data.get('action') == 'add_message':
-
-                            client = clients.get(
-                                response.data.get('contact_username')
-                            )
-
-                            if client:
-                                responses[client] = response
-
-                        if response.data.get('action') == 'login':
-
-                            data = response.data.get('user_data')
-
-                            if data:
-                                clients.update(
-                                    {
-                                        data.get('username'): sock
-                                    }
-                                )
-
-                                data = response.data.get('user_data')
-
-                                self.notifier.notify(
-                                    'client',
-                                    action='add',
-                                    data=data.get('username')
-                                )
-
-                        elif response.data.get('action') == 'logout':
-
-                            self.notifier.notify(
-                                'client',
-                                action='delete',
-                                data=response.data.get('username')
-                            )
-
-                    else:
-                        self.connections.remove(sock)
-
-            if responses:
-
-                for client_sock in responses:
-
-                    if client_sock in ready_to_write:
-
-                        try:
-                            self.send_response(
-                                client_sock, responses.get(client_sock)
-                            )
-                        except ConnectionResetError as error:
-                            logger.error(error, exc_info=True)
-                        except ConnectionAbortedError as error:
-                            logger.error(error, exc_info=True)
-
-                responses.clear()
