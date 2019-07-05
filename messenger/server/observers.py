@@ -9,7 +9,7 @@ logger = getLogger('server_logger')
 class Notifier(ABC):
     """Notifier interface"""
 
-    _state: bool = False
+    _state = False
 
     def __init__(self, obj) -> None:
         self.employer = obj

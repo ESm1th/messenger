@@ -39,7 +39,7 @@ class Singleton(metaclass=SingletonMeta):
 class Request:
     """Represents received data from client socket."""
 
-    action: str = None
+    action = None
     data: Dict = {}
 
     def __init__(self, **kwargs):
@@ -57,10 +57,10 @@ class Request:
 class Response:
     """Base response class"""
 
-    time: str = datetime.now().timestamp()
-    code: int = 200
-    info: str = 'Ok'
-    data: Dict[str, Any] = {}
+    time = datetime.now().timestamp()
+    code = 200
+    info = 'Ok'
+    data = {}
 
     def __init__(self, request: Request, data: Dict = {}) -> None:
 
@@ -111,13 +111,13 @@ class RequestHandler(ABC):
     'Controller' design pattern.
     """
 
-    model: Base = None
+    model = None
 
     def __init__(self, request: Request, session: Session) -> None:
         self.request = request
         self.session = session
 
-        logger.info(f'Controller: "{self}" was called.')
+        logger.info('Controller: "{}" was called.'.format(self))
 
     @abstractmethod
     def process(self) -> Response:
@@ -142,7 +142,7 @@ class Router(Singleton):
 
         return reduce(
             lambda routes, module: routes + getattr(
-                import_module(f'{ module }.routes'), 'routes', []
+                import_module('{}.routes'.format(module)), 'routes', []
             ),
             settings.INSTALLED_MODULES,
             []
@@ -209,11 +209,11 @@ class PortDescriptor:
 class Settings(Singleton):
     """Server settings"""
 
-    host: str = 'localhost'
-    port: PortDescriptor = PortDescriptor()
-    buffer_size: int = 1024
-    encoding_name: str = 'utf-8'
-    connections: int = 5
+    host = 'localhost'
+    port = PortDescriptor()
+    buffer_size = 1024
+    encoding_name = 'utf-8'
+    connections = 5
 
     def __init__(self) -> None:
         for attr, value in self.__class__.__dict__.items():
@@ -250,9 +250,11 @@ class ServerVerifier(type):
                 if re.search(pattern, code_data):
                     raise AttributeError(
                         ' '.join(
-                            ['Server socket must not have',
+                            [
+                                'Server socket must not have',
                                 '"connect"',
-                                f'calls in code. Check "{attr}" method']
+                                'calls in code. Check "{}" method'.format(attr)
+                            ]
                         )
                     )
 
@@ -270,7 +272,7 @@ class ServerVerifier(type):
 
 class Server(metaclass=ServerVerifier):
 
-    state: str = 'Disconnected'
+    state = 'Disconnected'
 
     def __init__(self, namespace: Namespace = None):
         self.settings = Settings()
@@ -402,7 +404,7 @@ class Server(metaclass=ServerVerifier):
                             data=user
                         )
 
-                logger.info(f'Response {response} sent.')
+                logger.info('Response {} sent.'.format(response))
                 logger.info(prepared_response)
 
                 self.notifier.notify(
@@ -413,7 +415,7 @@ class Server(metaclass=ServerVerifier):
                 )
             else:
                 writer.close()
-                logger.info(f'Client {address} disconnected')
+                logger.info('Client {} disconnected'.format(address))
                 return
 
     async def process_request(self, request):

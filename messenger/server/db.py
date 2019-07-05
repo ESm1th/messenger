@@ -188,7 +188,7 @@ class Client(CoreMixin, Base):  # type: ignore
                 Media(
                     uploader_id=self.id,
                     kind=MediaTypes.AVATAR,
-                    path=f'{self.username}_avatar.png'
+                    path='{}_avatar.png'.format(self.username)
                 )
             )
 

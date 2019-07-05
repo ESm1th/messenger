@@ -12,7 +12,6 @@ from core import Server
 from gui import ServerGui
 
 
-
 faulthandler.enable()
 
 

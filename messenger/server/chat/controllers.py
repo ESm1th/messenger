@@ -1,5 +1,3 @@
-import base64
-
 from core import (
     RequestHandler,
     Response,
