@@ -2,7 +2,7 @@ import json
 import re
 from dis import code_info
 from logging import getLogger
-from typing import Dict, Any, List
+from typing import Dict, Any
 from abc import ABC, abstractmethod
 from datetime import datetime
 from argparse import Namespace
@@ -376,21 +376,30 @@ class Server(metaclass=ServerVerifier):
                         if response.data.get('action') == 'add_message':
                             client = response.data.get('contact_username')
 
-                            if client in loop.clients:
-                                client_write = loop.clients[client]
-                                client_write.write(
-                                    prepared_response
-                                )
-                                await client_write.drain()
+                            if not client:
+                                for client in loop.clients:
+                                    client_writer = loop.clients[client]
+
+                                    if client_writer is not writer:
+                                        client_writer.write(prepared_response)
+                                        await client_writer.drain()
+                            else:
+                                if client in loop.clients:
+                                    client_write = loop.clients[client]
+                                    client_write.write(
+                                        prepared_response
+                                    )
+                                    await client_write.drain()
 
                         writer.write(prepared_response)
-
                         await writer.drain()
                     else:
+                        user = response.data.get('username')
+                        loop.clients.pop(user)
                         self.notifier.notify(
                             'client',
                             action='delete',
-                            data=response.data.get('username')
+                            data=user
                         )
 
                 logger.info(f'Response {response} sent.')

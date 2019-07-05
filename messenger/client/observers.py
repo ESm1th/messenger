@@ -1,4 +1,3 @@
-import base64
 from abc import ABC, abstractmethod
 from typing import Dict
 
@@ -107,7 +106,7 @@ class LoginListener(Listener):
     event = 'response'
 
     def refresh(self, *args, **kwargs) -> None:
-        
+
         if kwargs.get('action') == 'login' and kwargs.get('code') == 200:
             self.employer.parent.chat.emit(kwargs)
             self.employer.close_window.emit()
@@ -136,7 +135,7 @@ class ChatListener(Listener):
 
         if kwargs.get('code') == 200:
 
-            if kwargs.get('action') == 'get_chat':
+            if kwargs.get('action') in ('get_chat', 'common_chat'):
                 self.employer.open_chat.emit(kwargs)
 
 
@@ -155,8 +154,8 @@ class NewMessageListener(Listener):
 
                     self.employer.append_message_to_textbox.emit(
                         {
-                            'sender_id': kwargs.get('sender_id'),
-                            'text': kwargs.get('message')
+                            'sender': kwargs.get('message')[0],
+                            'text': kwargs.get('message')[1]
                         }
                     )
 
@@ -186,3 +185,20 @@ class AvatarListener(Listener):
 
                 if file_name:
                     self.employer.set_avatar_signal.emit(file_name)
+                else:
+                    self.employer.avatar_label.clear()
+
+
+class SearchMessageListener(Listener):
+
+    event = 'response'
+
+    def refresh(self, *args, **kwargs) -> None:
+
+        if kwargs.get('code') == 200:
+
+            if kwargs.get('action') == 'search_in_chat':
+
+                self.employer.set_searched_messages.emit(
+                    kwargs.get('messages')
+                )

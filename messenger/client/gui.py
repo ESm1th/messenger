@@ -1,6 +1,5 @@
 import sys
 import os
-import threading
 from typing import Dict
 from io import BytesIO
 
@@ -40,19 +39,10 @@ from PIL.ImageQt import ImageQt
 
 from core import (
     Client,
-    FtpClient
+    FtpClient,
+    Sender
 )
-from _requests import (
-    RegistrationRequestCreator,
-    LoginRequestCreator,
-    ChatRequestCreator,
-    AddContactRequestCreator,
-    DeleteContactRequestCreator,
-    MessageRequestCreator,
-    LogoutRequestCreator,
-    ProfileRequestCreator,
-    UpdateProfileRequestCreator
-)
+
 from observers import (
     StateListener,
     StatusGroupListener,
@@ -61,7 +51,8 @@ from observers import (
     ChatListener,
     NewMessageListener,
     ProfileListener,
-    AvatarListener
+    AvatarListener,
+    SearchMessageListener
 )
 
 import settings
@@ -157,29 +148,6 @@ class FormFactory(QFormLayout):
             self.addRow(QLabel(field.replace('_', ' ').title()), line_edit)
 
 
-class Sender:
-    """
-    Takes callers/parents 'RequestCreator' object,
-    then ctreates request by passing appropriate user data to
-    'send_request' method. Prepares request and then opens thread and sends
-    request within this thread.
-    """
-
-    def __init__(self, parent):
-        self.parent = parent
-
-    def send_request(self, data=None):
-        request = self.parent.request_creator.create_request(data)
-        raw_data = request.prepare().encode(
-            self.parent.client.settings.encoding_name
-        )
-
-        send_thread = threading.Thread(
-            target=self.parent.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
-
-
 class StatusGroup(QGroupBox):
     """
     Custom 'group box' widget.
@@ -262,11 +230,9 @@ class CommonMixin:
 
 class RegistrationForm(CommonMixin, QDialog):
 
-    request_creator = RegistrationRequestCreator()
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self.sender = Sender(self)
+        self._sender = Sender(self.client)
         self.init_ui()
 
     def init_ui(self):
@@ -314,17 +280,16 @@ class RegistrationForm(CommonMixin, QDialog):
             for widget in widgets
         }
 
-        self.sender.send_request(user_data)
+        self._sender.send_request(action='register', user_data=user_data)
 
 
 class LoginForm(CommonMixin, QDialog):
 
-    request_creator = LoginRequestCreator()
     close_window = pyqtSignal()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._sender = Sender(self)
+        self._sender = Sender(self.client)
         self.listener = LoginListener(self, self.client.notifier)
         self.init_ui()
         self.close_window.connect(self.close)
@@ -373,7 +338,7 @@ class LoginForm(CommonMixin, QDialog):
             for widget in widgets
         }
 
-        self._sender.send_request(user_data)
+        self._sender.send_request(action='login', user_data=user_data)
 
     def closeEvent(self, event):
         if not self.sender().__class__ is type(self):
@@ -434,10 +399,9 @@ class SettingsForm(CommonMixin, QDialog):
 
 class ProfileForm(CommonMixin, QDialog):
 
-    request_creator = UpdateProfileRequestCreator()
-
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        self._sender = Sender(self.client)
         self.ftp_client = FtpClient()
         self.profile_data = kwargs
         self.init_ui()
@@ -558,24 +522,16 @@ class ProfileForm(CommonMixin, QDialog):
                 {'upload_status': upload_status}
             )
 
-        request = self.request_creator.create_request(user_data)
-        raw_data = request.prepare().encode(
-            self.client.settings.encoding_name
+        self._sender.send_request(
+            action='update_profile', user_data=user_data
         )
-
-        send_thread = threading.Thread(
-            target=self.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
 
 
 class AddContact(CommonMixin, QDialog):
 
-    request_creator = AddContactRequestCreator()
-
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._sender = Sender(self)
+        self._sender = Sender(self.client)
         self.init_ui()
 
     def init_ui(self):
@@ -617,21 +573,16 @@ class AddContact(CommonMixin, QDialog):
             {'username': self.parent.username}
         )
 
-        self._sender.send_request(user_data)
+        self._sender.send_request(action='add_contact', user_data=user_data)
 
 
-class ChatWindow(CommonMixin, QDialog):
-
-    request_creator = ChatRequestCreator()
-    delete_creator = DeleteContactRequestCreator()
-    message_creator = MessageRequestCreator()
-    logout_creator = LogoutRequestCreator()
-    profile_creator = ProfileRequestCreator()
+class ChatWindow(CommonMixin, QWidget):
 
     update_model_add = pyqtSignal(dict)
     update_model_delete = pyqtSignal(str)
     append_messages_to_textbox = pyqtSignal(list)
     append_message_to_textbox = pyqtSignal(dict)
+    set_searched_messages = pyqtSignal(list)
     set_avatar_signal = pyqtSignal(str)
     open_chat = pyqtSignal(dict)
     open_profile = pyqtSignal(dict)
@@ -641,13 +592,17 @@ class ChatWindow(CommonMixin, QDialog):
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
-        self._sender = Sender(self)
+        self._sender = Sender(self.client)
         self.ftp_client = FtpClient()
+
         self.profile_listener = ProfileListener(self, self.client.notifier)
         self.contact_listener = ContactListener(self, self.client.notifier)
         self.chat_listener = ChatListener(self, self.client.notifier)
         self.avatar_listener = AvatarListener(self, self.client.notifier)
         self.new_message_listener = NewMessageListener(
+            self, self.client.notifier
+        )
+        self.search_message_listener = SearchMessageListener(
             self, self.client.notifier
         )
 
@@ -658,6 +613,7 @@ class ChatWindow(CommonMixin, QDialog):
         self.set_avatar_signal.connect(self.set_avatar)
         self.open_chat.connect(self.activate_chat)
         self.open_profile.connect(self.profile_dialog)
+        self.set_searched_messages.connect(self.set_messages)
 
         self.add_contact_window = AddContact(client=self.client, parent=self)
 
@@ -719,6 +675,10 @@ class ChatWindow(CommonMixin, QDialog):
 
         lbl_contacts = QLabel('Contacts')
 
+        btn_common_chat = QPushButton('Common chat')
+        btn_common_chat.clicked.connect(self.send_common_chat_request)
+        btn_common_chat.setAutoDefault(False)
+
         btn_add_contact = QPushButton('Add contact')
         btn_add_contact.clicked.connect(self.add_contact)
         btn_add_contact.setAutoDefault(False)
@@ -730,10 +690,28 @@ class ChatWindow(CommonMixin, QDialog):
         v_contacts_layout = QVBoxLayout()
         v_contacts_layout.addWidget(lbl_contacts)
         v_contacts_layout.addWidget(self.column_view)
+        v_contacts_layout.addWidget(btn_common_chat)
         v_contacts_layout.addWidget(btn_add_contact)
         v_contacts_layout.addWidget(btn_delete_contact)
 
-        lbl_chat = QLabel('Chat window')
+        path = os.path.join(settings.BASE_DIR, 'media')
+
+        self.search_message = QLineEdit()
+        self.search_message.setPlaceholderText('Enter word to search')
+        self.search_message.returnPressed.connect(self.search_in_chat)
+
+        message_search = QAction(
+            QIcon(os.path.join(path, 'search.png')), 'Search', self
+        )
+        message_search.triggered.connect(self.search_in_chat)
+
+        search_message_toolbar = QToolBar('Search')
+        search_message_toolbar.addAction(message_search)
+
+        h_search_layout = QHBoxLayout()
+        h_search_layout.addWidget(self.search_message)
+        h_search_layout.addWidget(search_message_toolbar)
+
         self.chat_text_edit = QTextEdit()
         self.chat_text_edit.setReadOnly(True)
         self.chat_text_edit.setDisabled(True)
@@ -744,7 +722,6 @@ class ChatWindow(CommonMixin, QDialog):
         self.message_line_edit.setTextMargins(10, 0, 10, 0)
         self.message_line_edit.returnPressed.connect(self.send_message_request)
 
-        path = os.path.join(settings.BASE_DIR, 'media')
         bold = QAction(QIcon(os.path.join(path, 'b.jpg')), 'Bold', self)
         italic = QAction(
             QIcon(os.path.join(path, 'i.jpg')), 'Italic', self
@@ -764,7 +741,7 @@ class ChatWindow(CommonMixin, QDialog):
 
         v_chat_layout = QVBoxLayout()
         v_chat_layout.addWidget(toolbar)
-        v_chat_layout.addWidget(lbl_chat)
+        v_chat_layout.addLayout(h_search_layout)
         v_chat_layout.addWidget(self.chat_text_edit)
         v_chat_layout.addWidget(lbl_enter)
         v_chat_layout.addWidget(self.message_line_edit)
@@ -779,9 +756,27 @@ class ChatWindow(CommonMixin, QDialog):
         v_main_layout.addLayout(h_box_layout)
 
         self.setLayout(v_main_layout)
-        self.resize(700, 500)
-        self.setFixedSize(self.sizeHint())
+        self.setFixedSize(500, 700)
         self.setWindowTitle('Chat')
+
+    def search_in_chat(self):
+        word = self.search_message.text()
+
+        user_data = {
+            'username': self.username,
+            'word': word,
+            'chat_id': self.active_chat,
+        }
+
+        self._sender.send_request(action='search_in_chat', user_data=user_data)
+
+    def set_messages(self, messages):
+        if messages:
+            self.chat_text_edit.clear()
+            for message in messages:
+                self.chat_text_edit.append(
+                    '{}: {}'.format(message[0], message[1])
+                )
 
     def action_bold(self):
         myFont = QFont()
@@ -820,13 +815,9 @@ class ChatWindow(CommonMixin, QDialog):
         self.profile_dialog.show()
 
     def send_profile_request(self):
-        user_data = {'username': self.username}
-        request = self.profile_creator.create_request(user_data)
-
-        raw_data = request.prepare().encode(
-            self.parent.client.settings.encoding_name
+        self._sender.send_request(
+            action='profile', user_data={'username': self.username}
         )
-        self.parent.client.send_request(raw_data)
 
     def send_chat_request(self, item):
         user_data = {
@@ -834,7 +825,12 @@ class ChatWindow(CommonMixin, QDialog):
             'contact_id': self.contacts.get(item.data()),
             'username': self.username
         }
-        self._sender.send_request(user_data)
+        self._sender.send_request(action='get_chat', user_data=user_data)
+
+    def send_common_chat_request(self):
+        self._sender.send_request(
+            action='common_chat', user_data={'username': self.username}
+        )
 
     def send_message_request(self):
         message = self.message_line_edit.text()
@@ -850,16 +846,7 @@ class ChatWindow(CommonMixin, QDialog):
                 'contact_username')
         }
 
-        request = self.message_creator.create_request(user_data)
-        raw_data = request.prepare().encode(
-            self.parent.client.settings.encoding_name
-        )
-
-        send_thread = threading.Thread(
-            target=self.parent.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
-
+        self._sender.send_request(action='add_message', user_data=user_data)
         self.message_line_edit.clear()
 
     def append_messages(self, messages):
@@ -867,36 +854,15 @@ class ChatWindow(CommonMixin, QDialog):
 
             for message in messages:
 
-                if message[0] is self.user_id:
-                    self.chat_text_edit.append(
-                        '{0}: {1}'.format(self.username, message[1])
-                    )
-
-                else:
-                    self.chat_text_edit.append(
-                        '{0}: {1}'.format(
-                            self.chats_data.get(self.active_chat).get(
-                                'contact_username'
-                            ), message[1]
-                        )
-                    )
+                self.chat_text_edit.append(
+                    '{0}: {1}'.format(message[0], message[1])
+                )
 
     def append_message(self, message):
 
-        if message and message.get('sender_id') == self.user_id:
-            self.chat_text_edit.append(
-                '{0}: {1}'.format(self.username, message.get('text'))
-            )
-
-        else:
-            self.chat_text_edit.append(
-                '{0}: {1}'.format(
-                    self.chats_data.get(self.active_chat).get(
-                        'contact_username'
-                    ),
-                    message.get('text')
-                )
-            )
+        self.chat_text_edit.append(
+            '{0}: {1}'.format(message.get('sender'), message.get('text'))
+        )
 
     def add_contact(self):
         self.add_contact_window.show()
@@ -911,15 +877,7 @@ class ChatWindow(CommonMixin, QDialog):
             'contact': contact
         }
 
-        request = self.delete_creator.create_request(user_data)
-        raw_data = request.prepare().encode(
-            self.parent.client.settings.encoding_name
-        )
-
-        send_thread = threading.Thread(
-            target=self.parent.client.send_request, args=(raw_data,)
-        )
-        send_thread.start()
+        self._sender.send_request(action='delete_contact', user_data=user_data)
 
     def update_contacts_list_add(self, contact: Dict) -> None:
         self.contacts.update(contact)
@@ -956,14 +914,9 @@ class ChatWindow(CommonMixin, QDialog):
 
     def closeEvent(self, event):
 
-        request = self.logout_creator.create_request(
-            {'username': self.username}
+        self._sender.send_request(
+            action='logout', user_data={'username': self.username}
         )
-
-        raw_data = request.prepare().encode(
-            self.parent.client.settings.encoding_name
-        )
-        self.parent.client.send_request(raw_data)
 
         event.accept()
         self.parent.show()
@@ -989,7 +942,6 @@ class ClientGui(CenterMixin, QWidget):
         self.login_window = LoginForm(client=self.client, parent=self)
         self.settings_window = SettingsForm(client=self.client, parent=self)
         self.chat_window = ChatWindow(client=self.client, parent=self)
-
         self.chat.connect(self.chat_window)
         self.client_thread = ClientThread(self.client)
         self.client_thread.start()
@@ -1057,7 +1009,6 @@ class ClientGui(CenterMixin, QWidget):
 
     def chat_window(self, response):
         """Opens chat window"""
-
         self.chat_window(response)
         self.setVisible(False)
 

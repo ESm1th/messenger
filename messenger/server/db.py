@@ -245,8 +245,17 @@ class Contact(CoreMixin, Base):  # type: ignore
     )
 
 
+class ChatTypes(enum.Enum):
+    """Chat types"""
+
+    SINGLE = enum.auto()
+    COMMON = enum.auto()
+
+
 class Chat(CoreMixin, Base):
     """Represents 'chats' table in database"""
+
+    chat_type = Column(Enum(ChatTypes), default=ChatTypes.SINGLE)
 
     messages = relationship('Message', back_populates='chat')
     participants = relationship(
@@ -255,16 +264,50 @@ class Chat(CoreMixin, Base):
         back_populates='chats',
     )
 
+    @classmethod
+    def get_common_chat(cls, seance):
+
+        with SessionScope(seance) as session:
+            common_chat = session.query(cls).filter(
+                cls.chat_type == ChatTypes.COMMON
+            ).one_or_none()
+
+            if not common_chat:
+                common_chat = Chat(chat_type=ChatTypes.COMMON)
+                common_chat.participants.extend(
+                    session.query(Client).all()
+                )
+
+                session.commit()
+                session.refresh(common_chat)
+
+            return common_chat
+
 
 class Message(CoreMixin, Base):
     """Represents 'messages' table in database"""
 
     sender_id = Column(Integer, ForeignKey('clients.id'))
-    receiver_id = Column(Integer, ForeignKey('clients.id'))
     chat_id = Column(Integer, ForeignKey('chats.id'))
     text = Column(String)
 
     chat = relationship('Chat', back_populates='messages')
+    sender = relationship(
+        'Client', foreign_keys=sender_id
+    )
+
+    @classmethod
+    def search_messages(cls, chat_id, word, seance):
+
+        with SessionScope(seance) as session:
+            message_objects = session.query(cls).join(Chat).filter(
+                cls.chat_id == chat_id, cls.text.ilike('%{}%'.format(word))
+            )
+
+            return [
+                (message.sender.username, message.text) for message
+                in message_objects
+            ]
 
 
 class MediaTypes(enum.Enum):

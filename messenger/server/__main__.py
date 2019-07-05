@@ -8,7 +8,9 @@ import faulthandler
 from PyQt5.QtWidgets import QApplication
 
 import settings
+from core import Server
 from gui import ServerGui
+
 
 
 faulthandler.enable()
@@ -53,9 +55,19 @@ logger.addHandler(handler)
 
 
 try:
-    app = QApplication([])
-    widget = ServerGui()
-    sys.exit(app.exec_())
-    logger.info('Works fine')
+    if not args:
+        app = QApplication([])
+        widget = ServerGui()
+        sys.exit(app.exec_())
+    else:
+        cmd_settings = {
+            'host': args.host,
+            'port': args.port
+        }
+
+        server = Server()
+        server.settings.update(cmd_settings)
+        server.run()
+
 except KeyboardInterrupt:
     logger.info('Server closed')

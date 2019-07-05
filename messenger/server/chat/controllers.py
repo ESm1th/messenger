@@ -11,7 +11,8 @@ from db import (
     Contact,
     Message,
     Session,
-    SessionScope
+    SessionScope,
+    ChatTypes
 )
 
 
@@ -160,9 +161,14 @@ class GetChat(ValidateMixin, RequestHandler):
                     self.request.data.get('contact_id')
                 ).user
 
-                chat = set(user.chats) & set(contact.chats)
+                chats = set(user.chats) & set(contact.chats)
 
-                if not chat:
+                not_common_chats = [
+                    chat for chat in chats if chats and chat.chat_type !=
+                    ChatTypes.COMMON
+                ]
+
+                if not not_common_chats:
                     chat = Chat()
                     session.add(chat)
                     session.commit()
@@ -170,7 +176,7 @@ class GetChat(ValidateMixin, RequestHandler):
                     session.add(chat)
                     session.commit()
                 else:
-                    chat = chat.pop()
+                    chat = not_common_chats.pop()
 
                 response = Response(
                     self.request,
@@ -186,7 +192,7 @@ class GetChat(ValidateMixin, RequestHandler):
                 if chat.messages:
 
                     messages = [
-                        (message.sender_id, message.text) for
+                        (message.sender.username, message.text) for
                         message in chat.messages
                     ]
 
@@ -195,6 +201,43 @@ class GetChat(ValidateMixin, RequestHandler):
                     )
 
                 return response
+
+
+class CommonChat(ValidateMixin, RequestHandler):
+
+    model = Chat
+
+    def process(self):
+
+        if self.validate_request():
+
+            common_chat = self.model.get_common_chat(self.session)
+            client = Client.get_client(
+                self.session, self.request.data.get('username')
+            )
+
+            data = {
+                'code': 200,
+                'chat_id': common_chat.id,
+            }
+
+            with SessionScope(self.session) as session:
+                session.add(common_chat)
+                session.add(client)
+
+                if common_chat.messages:
+                    messages = [
+                        (message.sender.username, message.text) for
+                        message in common_chat.messages
+                    ]
+                    data.update({'messages': messages})
+
+                if client not in common_chat.participants:
+                    common_chat.participants.append(client)
+
+                session.commit()
+
+            return Response(self.request, data=data)
 
 
 class AddMessage(ValidateMixin, RequestHandler):
@@ -206,7 +249,6 @@ class AddMessage(ValidateMixin, RequestHandler):
             with SessionScope(Session) as session:
                 message = Message(
                     sender_id=self.request.data.get('user_id'),
-                    receiver_id=self.request.data.get('contact_user_id'),
                     chat_id=self.request.data.get('chat_id'),
                     text=self.request.data.get('message')
                 )
@@ -223,8 +265,8 @@ class AddMessage(ValidateMixin, RequestHandler):
                         'contact_username': self.request.data.get(
                             'contact_username'
                         ),
-                        'sender_id': self.request.data.get('user_id'),
-                        'message': message.text
+                        # 'sender_id': self.request.data.get('user_id'),
+                        'message': (message.sender.username, message.text)
                     }
                 )
 
@@ -294,5 +336,30 @@ class UpdateProfile(ValidateMixin, RequestHandler):
                         'bio': user.bio,
                         'file_name': user.get_avatar(self.session).path
                     }
+                }
+            )
+
+
+class SearchInChat(ValidateMixin, RequestHandler):
+
+    model = Message
+
+    def process(self):
+
+        if self.validate_request():
+
+            messages = self.model.search_messages(
+                self.request.data.get('chat_id'),
+                self.request.data.get('word'),
+                self.session
+            )
+
+            return Response(
+                self.request,
+                data={
+                    'code': 200,
+                    'info': 'Messages were retrived from database' if messages
+                    else 'Finded zero messages',
+                    'messages': messages
                 }
             )

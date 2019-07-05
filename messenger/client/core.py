@@ -2,6 +2,8 @@ import socket
 import json
 import logging
 import ftplib
+import threading
+from datetime import datetime
 from io import BytesIO
 from typing import Dict
 from argparse import Namespace
@@ -42,6 +44,33 @@ class Status(Singleton):
         for key, value in kwargs.items():
             if key in ('code', 'info'):
                 setattr(self, key, str(value))
+
+
+class Sender:
+    """
+    Prepares request and then opens thread and sends
+    request within this thread.
+    """
+
+    def __init__(self, client):
+        self.client = client
+
+    def send_request(self, action: str = None, user_data: Dict = {}) -> None:
+
+        data = {
+            'action': action,
+            'time': datetime.now().timestamp(),
+            'data': user_data
+        }
+
+        raw_data = json.dumps(data).encode(
+            self.client.settings.encoding_name
+        )
+
+        send_thread = threading.Thread(
+            target=self.client.send_request, args=(raw_data,)
+        )
+        send_thread.start()
 
 
 class PortDescriptor:
@@ -224,7 +253,7 @@ class Client(metaclass=ClientVerifier):
                             raw_response.decode(self.settings.encoding_name)
                         )
                     )
-                    # print('response: ', response)
+
                     self.notifier.notify('response', **response)
             except Exception as error:
                 self.state = False

@@ -65,8 +65,9 @@ class BaseNotifier(Notifier):
     def notify(self, event: str, *args, **kwargs) -> None:
         """Notify every listener about changed state"""
 
-        for listener in self._listeners[event]:
-            listener.refresh(self, *args, **kwargs)
+        if event in self._listeners:
+            for listener in self._listeners[event]:
+                listener.refresh(self, *args, **kwargs)
 
 
 class ServerStatusListener(Listener):
