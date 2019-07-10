@@ -54,7 +54,7 @@ logger.addHandler(handler)
 
 
 try:
-    if not args:
+    if not args.host and not args.port:
         app = QApplication([])
         widget = ServerGui()
         sys.exit(app.exec_())

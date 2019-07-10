@@ -1,0 +1,102 @@
+#:kivy 1.11.1
+
+<CustomInput@TextInput>:
+    multiline: False
+    size_hint_y: 0.5
+
+
+<CustomLabel@Label>:
+    padding: 5, 5
+    text_size: self.size
+    size_hint_y: 0.5
+
+
+<CustomButton@Button>:
+
+
+<ListBoxLayout>:
+
+    item: item
+    quantity: quantity
+    item_list: item_list
+
+    GridLayout:
+        cols: 1
+        padding: 10, 0, 10, 15
+        spacing: 15
+
+        BoxLayout:
+            size_hint_y: 0.5
+            orientation: 'vertical'
+
+            BoxLayout:
+                size_hint_y: 0.5
+                orientation: 'vertical'
+
+                CustomLabel:
+                    text: 'Item'
+
+                CustomInput:
+                    id: item
+            
+            BoxLayout:
+                size_hint_y: 0.5
+                orientation: 'vertical'
+
+                CustomLabel:
+                    text: 'Quantity'
+
+                CustomInput:
+                    id: quantity
+            
+        BoxLayout:
+            orientation: 'vertical'
+            size_hint_y: 0.5
+            spacing: 10
+
+            Button:
+                text: 'Add to list' 
+                on_press:
+                    root.add_item_to_list()
+
+            BoxLayout:
+                spacing: 10
+
+                CustomButton:
+                    text: 'Save'
+                    on_press:
+                        root.save_shopping_list()
+
+                CustomButton:
+                    text: 'Clear'
+                    on_press:
+                        item_list.clear_widgets()
+
+                CustomButton:
+                    text: 'Exit'
+                    on_press:
+                        app.stop()
+
+    BoxLayout:
+        orientation: 'vertical'
+        spacing: 20
+        padding: 0, 0, 0, 20
+        
+        Label:
+            text: 'Shopping list'
+            text_size: self.size
+            halign: 'center'
+            size_hint: 1, 0.1
+            pos_hint: {'center_x': 0.5}
+
+        ScrollView:
+            
+            GridLayout:
+                id: item_list
+                cols: 1
+                spacing: 10
+                padding: 5, 0, 5, 10
+                orientation: 'vertical'
+                size_hint_y: None
+                height: self.minimum_height
+
