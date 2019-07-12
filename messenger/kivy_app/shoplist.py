@@ -1,4 +1,6 @@
 
+import json
+import os
 from functools import reduce
 
 from pymongo import MongoClient
@@ -13,15 +15,17 @@ Config.set('graphics', 'width', '500')
 Config.set('graphics', 'height', '300')
 
 
+path = os.path.join(
+    os.path.dirname(__file__), 'credentials.json'
+)
+with open(path) as file:
+    credentials = json.load(file)
+
+
 class ShoppingList:
 
     def __init__(self):
-        self.client = MongoClient(
-            host='134.0.112.131',
-            username='client',
-            password='12469883Kk#',
-            authSource='product_list'
-        )
+        self.client = MongoClient(**credentials)
 
     def update(self, items):
         with self.client as client:
