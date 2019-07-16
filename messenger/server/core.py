@@ -2,7 +2,7 @@ import json
 import re
 from dis import code_info
 from logging import getLogger
-from typing import Dict, Any
+from typing import Dict
 from abc import ABC, abstractmethod
 from datetime import datetime
 from argparse import Namespace
@@ -11,7 +11,6 @@ from functools import reduce
 import asyncio
 
 import settings
-from db import Base, Session
 from observers import (
     BaseNotifier
 )
@@ -113,10 +112,8 @@ class RequestHandler(ABC):
 
     model = None
 
-    def __init__(self, request: Request, session: Session) -> None:
+    def __init__(self, request: Request) -> None:
         self.request = request
-        self.session = session
-
         logger.info('Controller: "{}" was called.'.format(self))
 
     @abstractmethod
@@ -277,7 +274,6 @@ class Server(metaclass=ServerVerifier):
     def __init__(self, namespace: Namespace = None):
         self.settings = Settings()
         self.router = Router()
-        self.session = Session
         self.notifier = BaseNotifier(self)
 
     def run(self):
@@ -429,7 +425,7 @@ class Server(metaclass=ServerVerifier):
 
                 if controller:
                     try:
-                        return controller(request, self.session).process()
+                        return controller(request).process()
                     except Exception:
                         logger.critical('Exception occurred', exc_info=True)
                         return Response_500(request)

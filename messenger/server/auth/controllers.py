@@ -5,9 +5,7 @@ from core import (
     Response,
     Response_400,
 )
-from db import (
-    Client,
-)
+from mongo import User
 
 
 logger = logging.getLogger('server_logger')
@@ -16,23 +14,15 @@ logger = logging.getLogger('server_logger')
 class AuthBase(RequestHandler):
     """Base class for [auth] app controllers"""
 
-    model = Client
+    model = User
 
     def validate_request(self, data):
         """
         Checks if username and password are not None
         and if they are not empty string
         """
-        print('in validate')
-        username = data.get('username')
-
-        if username != '' and username:
-            password = data.get('password')
-
-            if password != '' and password:
-                return True
-
-        return False
+        if bool(data.get('username')):
+            return bool(data.get('password'))
 
 
 class Register(AuthBase):
@@ -56,10 +46,10 @@ class Register(AuthBase):
         if self.validate_request(self.request.data):
             self.request.data.pop('repeat_password')
             username = self.request.data.get('username')
-            user = self.model.get_client(self.session, username)
+            user = self.model.get_user(username)
 
             if not user:
-                self.model.create(self.session, **self.request.data)
+                self.model(**self.request.data)
                 return Response(self.request, {'info': 'Register completed'})
             else:
                 return Response(
@@ -76,34 +66,26 @@ class Login(AuthBase):
     def process(self):
         if self.validate_request(self.request.data):
             username = self.request.data.get('username')
-            user = self.model.get_client(self.session, username)
+            user = self.model.get_user(username)
 
             if user:
                 password = self.request.data.get('password')
 
-                if password == user.password:
-
-                    contacts = {
-                        contact.user.username: contact.id
-                        for contact in user.contacts
-                    }
-
-                    user.set_auth_state(self.session, True)
-                    user.add_address(
-                        self.session,
-                        str(self.request.data.get('address'))
-                    )
+                if user.check_password(password):
+                    user.set_auth_state(True)
+                    # user.add_address(
+                    #     str(self.request.data.get('address'))
+                    # )
 
                     user_data = {
                         'username': user.username,
                         'user_id': user.id,
-                        'contacts': contacts,                        
+                        'contacts': user.get_contacts(),
                     }
 
-                    avatar = user.get_avatar(self.session)
-
-                    if avatar:
-                        user_data.update({'file_name': avatar.path})
+                    if hasattr(user, 'avatar'):
+                        if bool(user.avatar):
+                            user_data.update({'file_name': user.avatar})
 
                     return Response(
                         self.request,
@@ -137,10 +119,10 @@ class Logout(AuthBase):
         if self.validate_request(self.request.data):
 
             username = self.request.data.get('username')
-            user = self.model.get_client(self.session, username)
+            user = self.model.get_user(username)
 
             if user:
-                user.set_auth_state(self.session, False)
+                user.set_auth_state(False)
 
                 return Response(
                     self.request, {
