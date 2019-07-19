@@ -73,15 +73,13 @@ class Login(AuthBase):
 
                 if user.check_password(password):
                     user.set_auth_state(True)
-                    # user.add_address(
-                    #     str(self.request.data.get('address'))
-                    # )
 
                     user_data = {
                         'username': user.username,
                         'user_id': user.id,
                         'contacts': user.get_contacts(),
                     }
+                    
 
                     if hasattr(user, 'avatar'):
                         if bool(user.avatar):

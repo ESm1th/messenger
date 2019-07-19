@@ -2,7 +2,7 @@ import re
 from abc import ABC
 from hashlib import pbkdf2_hmac
 from pymongo import MongoClient
-# from bson.objectid import ObjectId
+from bson.objectid import ObjectId
 
 from settings import MONGO_CREDENTIALS, SALT
 
@@ -23,7 +23,6 @@ class Core(ABC):
         If '_id' not in kwargs also creates new database document.
         """
         properties = self.adapt_kwargs_to_class(kwargs)
-        print(properties)
         self.set_features(**properties)
 
         if '_id' not in kwargs:
@@ -36,7 +35,6 @@ class Core(ABC):
         For every key from passed kwargs if object has this key in self.fields
         attribute then sets key's value to object attribute with name like key.
         """
-        print(kwargs)
         [
             setattr(self, feature, value)
             for feature, value in kwargs.items()
@@ -51,6 +49,16 @@ class Core(ABC):
             feature: value
             for feature, value in kwargs.items() if feature in self.fields
         }
+
+    @property
+    def id(self):
+        return self._id.binary.hex()
+
+    @classmethod
+    def get_by_id(cls, id):
+        user_doc = cls.collection.find_one({'_id': ObjectId(id)})
+        if user_doc:
+            return cls(**user_doc)
 
     @classmethod
     def all(cls):
@@ -114,10 +122,6 @@ class User(Core):
         if user_doc:
             return cls(**user_doc)
 
-    @property
-    def id(self):
-        return self._id.binary.hex()
-
     def set_auth_state(self, state):
         self.update(is_authenticate=state)
 
@@ -157,9 +161,9 @@ class User(Core):
         and to self.contacts attribute.
         """
         self.collection.update_one(
-            {'_id': self._id}, {'$push': {'contacts': contact_id}}
+            {'_id': self._id}, {'$push': {'contacts': ObjectId(contact_id)}}
         )
-        self.contacts.append(contact_id)
+        self.contacts.append(ObjectId(contact_id))
 
     def remove_contact(self, contact_id):
         """
@@ -167,9 +171,9 @@ class User(Core):
         and from self.contacts attribute.
         """
         self.collection.update_one(
-            {'_id': self._id}, {'$pull': {'contacts': contact_id}}
+            {'_id': self._id}, {'$pull': {'contacts': ObjectId(contact_id)}}
         )
-        self.contacts.remove(contact_id)
+        self.contacts.remove(ObjectId(contact_id))
 
     def add_chat(self, chat_id):
         """
@@ -211,7 +215,7 @@ class Chat(Core):
 
     def __init__(self, **kwargs):
         if '_id' not in kwargs:
-            kwargs.update({'messages': []})
+            kwargs.update({'messages': [], 'participants': []})
         super().__init__(**kwargs)
 
     @classmethod
@@ -228,11 +232,19 @@ class Chat(Core):
 
     @classmethod
     def get_single_chat(cls, participants):
-        return cls.collection.find_one({'participants': participants})
+        chat_doc = cls.collection.find_one(
+            {'participants': {'$all': participants}, 'chat_type': 'single'}
+        )
+        return cls(**chat_doc)
 
-    def add_message(self, **kwargs):
+    def add_participant(self, participant):
+        self.collection.update_one(
+            {'_id': self._id}, {'$push': {'participants': participant._id}}
+        )
+        self.participants.append(participant._id)
+
+    def add_message(self, message):
         """Adds message to chat"""
-        message = Message(**kwargs)
         self.collection.update_one(
             {'_id': self._id}, {'$push': {'messages': message._id}}
         )
@@ -254,13 +266,21 @@ class Chat(Core):
                 {'$unwind': '$message_objects'}
             ]
         )
-        return [record['message_objects'] for record in result]
+        result = [
+            (
+                User.get_by_id(
+                    record['message_objects']['sender_id']
+                ).username, record['message_objects']['text']
+            )
+            for record in result
+        ]
+        return result
 
     def search_messages(self, text):
         messages = self.get_messages()
         return [
             message for message in messages if re.search(
-                text, message['text'], flags=re.IGNORECASE
+                text, message[1], flags=re.IGNORECASE
             )
         ]
 
@@ -275,19 +295,3 @@ class Message(Core):
         'chat_id',
         'text',
     )
-
-
-if __name__ == '__main__':
-    try:
-        user1 = User(username='test', password='1')
-        user2 = User(username='john', password='1')
-        user2.add_contact(user1._id)
-        print(user2.contacts)
-        print(user1.contacts)
-        print(user2.get_contacts())
-    except Exception as error:
-        print(error)
-        user1 = User.get_user('test')
-    finally:
-        user1.delete()
-        user2.delete()
