@@ -270,6 +270,4 @@ class Client(metaclass=ClientVerifier):
                 raise error
 
     def close(self):
-        if self.socket:
-            self.socket.shutdown(socket.SHUT_RD)
-            # self.socket.close()
+        self.socket.close()

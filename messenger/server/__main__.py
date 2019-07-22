@@ -18,12 +18,15 @@ faulthandler.enable()
 # adding arguments to command line and parsing them
 parser = argparse.ArgumentParser()
 parser.add_argument(
-    '-a', '--host', type=str,
+    '-a', '--address', type=str,
     help='IP-address using for socket binding'
 )
 parser.add_argument(
     '-p', '--port', type=int,
     help='TCP port using for socket binding'
+)
+parser.add_argument(
+    '-g', '--gui', action='store_const', const=True, default=False
 )
 args = parser.parse_args()
 
@@ -54,19 +57,18 @@ logger.addHandler(handler)
 
 
 try:
-    if not args.host and not args.port:
+    if args.gui:
         app = QApplication([])
         widget = ServerGui()
         sys.exit(app.exec_())
     else:
-        cmd_settings = {
-            'host': args.host,
-            'port': args.port
-        }
-
         server = Server()
-        server.settings.update(cmd_settings)
+        if args.address and args.port:
+            cmd_settings = {
+                'host': args.address,
+                'port': args.port
+            }
+            server.settings.update(cmd_settings)
         server.run()
-
 except KeyboardInterrupt:
     logger.info('Server closed')

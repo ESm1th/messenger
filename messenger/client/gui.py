@@ -392,7 +392,11 @@ class SettingsForm(CommonMixin, QDialog):
             )
             for widget in widgets
         }
+        self.client.close()
         self.settings.update(new_settings)
+
+        self.client_thread = ClientThread(self.client)
+        self.client_thread.start()
 
         self.close()
 
@@ -576,7 +580,7 @@ class AddContact(CommonMixin, QDialog):
         self._sender.send_request(action='add_contact', user_data=user_data)
 
 
-class ChatWindow(CommonMixin, QWidget):
+class ChatWindow(CommonMixin, CenterMixin, QWidget):
 
     update_model_add = pyqtSignal(dict)
     update_model_delete = pyqtSignal(str)
@@ -740,7 +744,7 @@ class ChatWindow(CommonMixin, QWidget):
         underlined.triggered.connect(self.action_underlined)
 
         v_chat_layout = QVBoxLayout()
-        v_chat_layout.addWidget(toolbar)
+        # v_chat_layout.addWidget(toolbar)
         v_chat_layout.addLayout(h_search_layout)
         v_chat_layout.addWidget(self.chat_text_edit)
         v_chat_layout.addWidget(lbl_enter)
@@ -758,6 +762,7 @@ class ChatWindow(CommonMixin, QWidget):
         self.setLayout(v_main_layout)
         self.setFixedSize(500, 700)
         self.setWindowTitle('Chat')
+        self.to_center()
 
     def search_in_chat(self):
         word = self.search_message.text()

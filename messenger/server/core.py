@@ -295,6 +295,7 @@ class Server(metaclass=ServerVerifier):
         info = 'Server started with {0}:{1}'.format(
             self.settings.host, self.settings.port
         )
+        logger.info(info)
         self.notifier.notify('log', info=info)
         self.notifier.notify('state')
 
