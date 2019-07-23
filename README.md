@@ -72,5 +72,32 @@ Run **server** with specific host address, port and GUI:
 python server -a 127.0.0.1 -p 8001 -g
 ```
 
-#### User authentication request example
-![Request example](https://github.com/ESm1th/messenger/blob/master/request.png)
+#### How it works
+All interaction between client and server bases on requesr and response format.
+Every proper request must contain action field. `Raw` request represented as json string.
+##### Authentication request example:
+```python
+{
+      "action": "login",
+      "time": 1561018237.341436,
+      "data": {
+            "username": "test",
+            "password": "test"
+      }
+}
+```
+Server application uses **MVC** architecture pattern.
+Server creates `Request` object from json string and if it valid sends it to `Router` object which finds appropriate 'callback' class.
+The result of class work is `Response` object, that sends to client.
+##### Authentication response example:
+```python
+{
+      "action": "login",
+      "time": 1561018242.351142,
+      "code": 200,
+      "info": "Client logged in",
+      "username": "test",
+      "user_id": 1,
+      "contacts": {}
+}
+```
