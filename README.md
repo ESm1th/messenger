@@ -1,6 +1,18 @@
 # Messenger 
 Simple client and server realisation of instant messenging application.
 
+### Features
+- instant messaging
+- user handling (registration, authentication)
+- one to one chat
+- common chat
+- adding and deleting contacts
+- messages are stored on server in **mongodb**
+- password are stored as hash
+- ftp server used to store, load and fetch images (avatars)
+- logging with **logging** module
+- server is working asynchronously
+
 ### Folder structure
 ```
 +---messenger
@@ -40,8 +52,7 @@ Change directory to **messenger** and install dependencies:
 ```
 pip install -r requirements.txt
 ```
-
-To start **server** with GUI enter command from **messenger** folder:
+To start **server** without GUI enter command from **messenger** folder:
 ```
 python server
 ```
@@ -52,11 +63,14 @@ python __main__.py
 #### Optional parameters
 | Option | Description |
 |---|---|
-|`-a, --address`|set host ip|
-|`-p, --port`|set port number|
+|`-a, --address`|run with specific host ip|
+|`-p, --port`|run with specific port number|
 |`-g, --gui`|run with GUI if used, if not used run without GUI|
 
 Run **server** with specific host address, port and GUI:
 ```
 python server -a 127.0.0.1 -p 8001 -g
 ```
+
+#### User authentication request example
+![Request example](https://github.com/ESm1th/messenger/blob/master/request.png)
