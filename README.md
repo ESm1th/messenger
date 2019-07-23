@@ -73,7 +73,7 @@ python server -a 127.0.0.1 -p 8001 -g
 ```
 
 #### How it works
-All interaction between client and server bases on requesr and response format.
+All interaction between client and server bases on request and response format.
 Every proper request must contain action field. `Raw` request represented as json string.
 ##### Authentication request example:
 ```python
