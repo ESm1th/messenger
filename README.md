@@ -31,22 +31,32 @@ Simple client and server realisation of instant messenging application.
 ### How to start
 Clone repository.
 
-Create virtual environment and and activate it:
+Create virtual environment and activate it:
 ```
 virtualenv --python=python3.7 chat_env
 source chat_env/bin/activate
 ```
-Change directory to **messenger/** and install dependencies:
+Change directory to **messenger** and install dependencies:
 ```
 pip install -r requirements.txt
 ```
 
-To start **server** with GUI enter command from **messenger/** folder:
+To start **server** with GUI enter command from **messenger** folder:
 ```
 python server
 ```
-or from **messenger/server/** folder:
+or from **messenger/server** folder:
 ```
 python __main__.py
 ```
+#### Optional parameters
+| Option | Description |
+|---|---|
+|`-a, --address`|set host ip|
+|`-p, --port`|set port number|
+|`-g, --gui`|run with GUI if used, if not used run without GUI|
 
+Run **server** with specific host address, port and GUI:
+```
+python server -a 127.0.0.1 -p 8001 -g
+```
