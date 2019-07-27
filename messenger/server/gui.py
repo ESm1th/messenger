@@ -154,7 +154,7 @@ class ServerGui(QWidget):
         settings_form_layout.construct()
 
         self.settings_group = QGroupBox('Settings')
-        self.settings_group.setFixedWidth(250)
+        self.settings_group.setFixedWidth(300)
         self.settings_group.setLayout(settings_form_layout)
 
         self.run_server_btn = QPushButton('Run server')
@@ -235,8 +235,8 @@ class ServerGui(QWidget):
         v_layout.addLayout(request_and_response_layout)
 
         h_layout = QHBoxLayout()
-        h_layout.addLayout(v_settings_layout)
-        h_layout.addLayout(v_layout)
+        h_layout.addLayout(v_settings_layout, 1)
+        h_layout.addLayout(v_layout, 2)
 
         self.setWindowTitle('Admin panel')
         self.setLayout(h_layout)
