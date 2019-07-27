@@ -11,18 +11,7 @@ from mongo import (
 )
 
 
-class ValidateMixin:
-
-    def validate_request(self):
-        """
-        Checks if username is not None
-        and if it is not empty string
-        """
-
-        return bool(self.request.data.get('username'))
-
-
-class AddContact(ValidateMixin, RequestHandler):
+class AddContact(RequestHandler):
 
     model = User
 
@@ -67,7 +56,7 @@ class AddContact(ValidateMixin, RequestHandler):
                 )
 
 
-class DeleteContact(ValidateMixin, RequestHandler):
+class DeleteContact(RequestHandler):
 
     model = User
 
@@ -95,7 +84,7 @@ class DeleteContact(ValidateMixin, RequestHandler):
             )
 
 
-class GetChat(ValidateMixin, RequestHandler):
+class GetChat(RequestHandler):
 
     model = User
 
@@ -135,7 +124,7 @@ class GetChat(ValidateMixin, RequestHandler):
             return response
 
 
-class CommonChat(ValidateMixin, RequestHandler):
+class CommonChat(RequestHandler):
 
     model = Chat
 
@@ -163,7 +152,7 @@ class CommonChat(ValidateMixin, RequestHandler):
             return Response(self.request, data=data)
 
 
-class AddMessage(ValidateMixin, RequestHandler):
+class AddMessage(RequestHandler):
 
     model = Chat
 
@@ -195,7 +184,7 @@ class AddMessage(ValidateMixin, RequestHandler):
             )
 
 
-class Profile(ValidateMixin, RequestHandler):
+class Profile(RequestHandler):
 
     model = User
 
@@ -225,7 +214,7 @@ class Profile(ValidateMixin, RequestHandler):
             )
 
 
-class UpdateProfile(ValidateMixin, RequestHandler):
+class UpdateProfile(RequestHandler):
 
     model = User
 
@@ -259,7 +248,7 @@ class UpdateProfile(ValidateMixin, RequestHandler):
             )
 
 
-class SearchInChat(ValidateMixin, RequestHandler):
+class SearchInChat(RequestHandler):
 
     model = Chat
 
@@ -275,7 +264,7 @@ class SearchInChat(ValidateMixin, RequestHandler):
                 data={
                     'code': 200,
                     'info': 'Messages were retrived from database' if messages
-                    else 'Finded zero messages',
+                    else 'Found zero messages',
                     'messages': messages
                 }
             )

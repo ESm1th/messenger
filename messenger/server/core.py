@@ -120,9 +120,12 @@ class RequestHandler(ABC):
     def process(self) -> Response:
         pass
 
-    @abstractmethod
-    def validate_request(self, data) -> bool:
-        pass
+    def validate_request(self) -> bool:
+        """
+        Checks if username is not None
+        and if it is not empty string
+        """
+        return bool(self.request.data.get('username'))
 
 
 class Router(Singleton):
@@ -344,24 +347,18 @@ class Server(metaclass=ServerVerifier):
                 request_attributes = json.loads(
                     raw_request.decode(self.settings.encoding_name)
                 )
-
                 request = Request(**request_attributes)
+
                 response = await self.process_request(request)
-
                 if response:
-
                     if response.data.get('action') != 'logout':
 
                         if response.data.get('action') == 'login':
                             data = response.data.get('user_data')
-
                             if data:
                                 loop.clients.update(
-                                    {
-                                        data.get('username'): writer
-                                    }
+                                    {data.get('username'): writer}
                                 )
-
                                 self.notifier.notify(
                                     'client',
                                     action='add',
