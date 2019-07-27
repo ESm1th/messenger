@@ -1,5 +1,6 @@
 import sys
 import os
+import threading
 from typing import Dict
 from io import BytesIO
 
@@ -93,7 +94,6 @@ class CenterMixin:
         Gets geometry of window, positions it on the center of the screen
         and then moves app window to it
         """
-
         rectangle = self.frameGeometry()
         desktop_center = QDesktopWidget().availableGeometry().center()
         rectangle.moveCenter(desktop_center)
@@ -135,7 +135,6 @@ class FormFactory(QFormLayout):
 
     def construct(self) -> None:
         for field, value in self.fields.items():
-
             line_edit = TitledLineEdit(title=field)
 
             if 'password' in field:
@@ -573,6 +572,7 @@ class AddContact(CommonMixin, QDialog):
             widget.title: widget.text().strip()
             for widget in widgets
         }
+
         user_data.update(
             {'username': self.parent.username}
         )
@@ -799,6 +799,10 @@ class ChatWindow(CommonMixin, CenterMixin, QWidget):
         self.chat_text_edit.setFont(myFont)
 
     def set_avatar(self, path):
+        avatar_thread = threading.Thread(target=self.fetch_ftp, args=(path,))
+        avatar_thread.start()
+
+    def fetch_ftp(self, path):
         self.ftp_client.connect()
         data = self.ftp_client.download_file(path)
 
@@ -856,18 +860,15 @@ class ChatWindow(CommonMixin, CenterMixin, QWidget):
 
     def append_messages(self, messages):
         if messages:
-
             for message in messages:
-
                 self.chat_text_edit.append(
                     '{0}: {1}'.format(message[0], message[1])
                 )
 
     def append_message(self, message):
-
         self.chat_text_edit.append(
-            '{0}: {1}'.format(message.get('sender'), message.get('text'))
-        )
+                    '{0}: {1}'.format(message.get('sender'), message.get('text'))
+                )
 
     def add_contact(self):
         self.add_contact_window.show()
@@ -918,7 +919,6 @@ class ChatWindow(CommonMixin, CenterMixin, QWidget):
             self.append_messages_to_textbox.emit(messages)
 
     def closeEvent(self, event):
-
         self._sender.send_request(
             action='logout', user_data={'username': self.username}
         )
