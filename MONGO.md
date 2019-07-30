@@ -26,3 +26,39 @@ Check `mongo` version
 ```
 mongo --version
 ```
+### Enable access control
+Connect to mongo
+```
+mongo
+```
+Create admin user in `admin` database
+```javascript
+use admin
+db.createUser(
+  {
+    user: "myUserAdmin",
+    pwd: "password",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+```
+Change settings
+```
+sudo nano /etc/mongodb.conf
+```
+Uncomment bold string
+```
+# Turn on/off security.  Off is currently the default
+#noauth = true
+**auth** = **true**
+```
+Create `client` user in `messenger` database
+```javascript
+db.createUser(
+  {
+    user: "client",
+    pwd: "password",
+    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+  }
+)
+```
