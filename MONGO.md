@@ -46,7 +46,7 @@ Change settings
 ```
 sudo nano /etc/mongodb.conf
 ```
-Uncomment bold string and save changes
+Uncomment `auth` string and save changes
 ```javascript
 # Turn on/off security.  Off is currently the default
 #noauth = true
