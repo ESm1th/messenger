@@ -52,6 +52,20 @@ Change directory to **messenger** and install dependencies:
 ```
 pip install -r requirements.txt
 ```
+Install and set up 
+[MongoDB](https://github.com/ESm1th/messenger/blob/master/MONGO.md)
+
+Create `credentials.json` file in `servers` base directory with following data
+```
+{
+    "host": "host",
+    "username": "client",
+    "password": "password",
+    "authSource": "messenger"
+}
+````
+
+
 To start **server** without GUI enter command from **messenger** folder:
 ```
 python server
