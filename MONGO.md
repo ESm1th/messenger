@@ -36,7 +36,7 @@ Create admin user in `admin` database
 use admin
 db.createUser(
   {
-    user: "myUserAdmin",
+    user: "admin",
     pwd: "password",
     roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
   }
@@ -46,19 +46,28 @@ Change settings
 ```
 sudo nano /etc/mongodb.conf
 ```
-Uncomment bold string
-```
+Uncomment bold string and save changes
+```javascript
 # Turn on/off security.  Off is currently the default
 #noauth = true
-**auth** = **true**
+auth = true
+```
+Restart mongo
+```
+sudo systemctl restart mongodb
+```
+Connect to `mongo` as `admin`
+```
+mongo admin -u admin -p
 ```
 Create `client` user in `messenger` database
 ```javascript
+use messenger
 db.createUser(
   {
     user: "client",
     pwd: "password",
-    roles: [ { role: "userAdminAnyDatabase", db: "admin" }, "readWriteAnyDatabase" ]
+    roles: [ { role: "readWrite", db: "messenger" } ]
   }
 )
 ```
