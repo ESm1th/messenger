@@ -30,7 +30,7 @@ PyQt5-sip==4.19.17
 PySide2==5.12.3
 pytest==4.4.1
 pytz==2019.1
-PyYAML==5.1
+PyYAML==5.4
 requests==2.22.0
 shiboken2==5.12.3
 six==1.12.0
